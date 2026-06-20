@@ -68,10 +68,25 @@
     }
 
     window.__fb = { db, firebaseReady, ...fbFns };
-    window.dispatchEvent(new Event("fb-ready"));
+    if (!window.__fbReadyFired) {
+      window.__fbReadyFired = true;
+      window.dispatchEvent(new Event("fb-ready"));
+    }
   }
 
   setupFirebase();
+
+  // Watchdog: no matter what happens above (a hang, a slow network, an
+  // unexpected error outside the inner try/catch), guarantee fb-ready
+  // fires within 6 seconds so the rest of the page never stays dead.
+  setTimeout(() => {
+    if (!window.__fbReadyFired) {
+      console.error("Firebase setup timed out — falling back to local mode.");
+      window.__fb = { db: null, firebaseReady: false };
+      window.__fbReadyFired = true;
+      window.dispatchEvent(new Event("fb-ready"));
+    }
+  }, 6000);
 </script>
 
 <style>
@@ -543,18 +558,41 @@
 </div>
 
 <script>
-window.addEventListener('fb-ready', () => {
-  const fb = window.__fb;
+// Run as soon as the DOM is ready — NOT gated on Firebase, so the form
+// and questionnaire are always interactive immediately, even if Firebase
+// is slow, blocked, or never finishes connecting. Firebase readiness is
+// only awaited at the specific moments data actually needs to be saved
+// or loaded (submit, viewing the roster, generating teams).
+function initApp() {
   const PASSWORD = "22";
   const PLAYERS_COLLECTION = "players";
-  const TEAMS_DOC = "tournament/teams";
 
-  let localPlayers = [];      // used only if Firebase isn't configured
-  let usingLocal = !fb.firebaseReady;
+  let localPlayers = [];      // used only if Firebase isn't configured/ready
+  let usingLocal = true;      // optimistic default; corrected once fb-ready resolves
+  let fb = { firebaseReady: false };
 
-  if (usingLocal) {
-    document.getElementById('fbWarning').classList.add('show');
-  }
+  // Resolves once Firebase setup has finished (success OR fallback) —
+  // never hangs forever, because index.html guarantees fb-ready fires
+  // within 6 seconds no matter what.
+  const fbReadyPromise = new Promise((resolve) => {
+    if (window.__fbReadyFired) {
+      fb = window.__fb;
+      usingLocal = !fb.firebaseReady;
+      resolve();
+    } else {
+      window.addEventListener('fb-ready', () => {
+        fb = window.__fb;
+        usingLocal = !fb.firebaseReady;
+        if (usingLocal) {
+          document.getElementById('fbWarning').classList.add('show');
+        }
+        resolve();
+        // Once we know Firebase's real status, attach the live listeners
+        // and re-render with real data instead of the empty placeholder.
+        attachLiveListenersIfReady();
+      }, { once: true });
+    }
+  });
 
   // ---------------- Form state ----------------
   let q1 = null;   // 'batting' | 'bowling' | 'both'
@@ -627,6 +665,7 @@ window.addEventListener('fb-ready', () => {
   }
 
   async function getAllPlayers() {
+    await fbReadyPromise;
     if (usingLocal) return localPlayers;
     const snap = await fb.getDocs(fb.query(fb.collection(fb.db, PLAYERS_COLLECTION), fb.orderBy('createdAtLocal', 'asc')));
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -659,6 +698,7 @@ window.addEventListener('fb-ready', () => {
     submitBtn.innerHTML = '<span class="spinner"></span> Submitting…';
 
     try {
+      await fbReadyPromise;
       const existing = await getAllPlayers();
       if (existing.some(p => normalizeName(p.fullName) === key)) {
         showMsg(`"${fullName}" is already registered. Names can't be repeated — try adding a middle initial if this is a different person.`, 'err');
@@ -742,21 +782,34 @@ window.addEventListener('fb-ready', () => {
     el.classList.add('show');
   }
 
-  if (!usingLocal) {
-    fb.onSnapshot(fb.query(fb.collection(fb.db, PLAYERS_COLLECTION), fb.orderBy('createdAtLocal', 'asc')), (snap) => {
-      const players = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderRoster(players);
-    }, (err) => { console.error('Roster snapshot error', err); showFbErrorBanner(err.code || err.message || 'connection error'); });
+  // Render immediately with whatever we have (empty local list) so the
+  // page is never blank while Firebase is still connecting in the background.
+  renderRoster();
 
-    // Live team listener too, in case teams were generated elsewhere
-    fb.onSnapshot(fb.doc(fb.db, 'tournament', 'teams'), (snap) => {
-      if (snap.exists()) {
-        renderTeams(snap.data().teams);
-      }
-    }, (err) => { console.error('Teams snapshot error', err); showFbErrorBanner(err.code || err.message || 'connection error'); });
-  } else {
-    renderRoster();
+  function attachLiveListenersIfReady() {
+    if (!usingLocal) {
+      fb.onSnapshot(fb.query(fb.collection(fb.db, PLAYERS_COLLECTION), fb.orderBy('createdAtLocal', 'asc')), (snap) => {
+        const players = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderRoster(players);
+      }, (err) => { console.error('Roster snapshot error', err); showFbErrorBanner(err.code || err.message || 'connection error'); });
+
+      // Live team listener too, in case teams were generated elsewhere
+      fb.onSnapshot(fb.doc(fb.db, 'tournament', 'teams'), (snap) => {
+        if (snap.exists()) {
+          renderTeams(snap.data().teams);
+        }
+      }, (err) => { console.error('Teams snapshot error', err); showFbErrorBanner(err.code || err.message || 'connection error'); });
+
+      // Fetch once immediately too for instant paint of any already-generated teams
+      fb.getDoc(fb.doc(fb.db, 'tournament', 'teams')).then(snap => {
+        if (snap.exists()) renderTeams(snap.data().teams);
+      }).catch(() => {});
+    }
   }
+
+  // In case fb-ready already fired before this point (e.g. very fast
+  // local-mode fallback), attach listeners right away too.
+  fbReadyPromise.then(attachLiveListenersIfReady);
 
   // ---------------- Team generation algorithm ----------------
   // Strategy: classify into 4 buckets ordered by "rarity/value":
@@ -980,15 +1033,13 @@ window.addEventListener('fb-ready', () => {
     if (e.key === 'Enter') confirmRoster.click();
   });
 
-  // Load existing teams on first paint if using Firebase (snapshot above handles live updates,
-  // but fetch once immediately too for instant paint)
-  if (!usingLocal) {
-    fb.getDoc(fb.doc(fb.db, 'tournament', 'teams')).then(snap => {
-      if (snap.exists()) renderTeams(snap.data().teams);
-    }).catch(() => {});
-  }
+}
 
-});
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
 </script>
 
 </body>
