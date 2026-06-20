@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KSCY — Tournament Registration</title>
+
+<!-- ============================================================
+     FIREBASE — already connected to Kerala Sports Club Yukon
+     Project: kerala-sports-club-yukon
+
+     Remaining one-time setup in the Firebase console:
+     1. Build → Firestore Database → Create database →
+        start in PRODUCTION mode → pick a region near you
+     2. Firestore → Rules tab → paste in firestore.rules.txt
+        (included alongside this file) → Publish
+     Once both are done, this page reads/writes live data.
+     ============================================================ -->
+
+<script type="module">
+  // ============================================================
+  // Firebase config — Kerala Sports Club Yukon
+  // ============================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyBpVpwgtwXMQGkC_90QqapunT5vb7xngss",
+    authDomain: "kerala-sports-club-yukon.firebaseapp.com",
+    projectId: "kerala-sports-club-yukon",
+    storageBucket: "kerala-sports-club-yukon.firebasestorage.app",
+    messagingSenderId: "264568513889",
+    appId: "1:264568513889:web:45b8800694aa80b6369120"
+  };
+  // ============================================================
+
+  let db = null;
+  let firebaseReady = false;
+  let fbFns = {};
+
+  // Use dynamic imports inside try/catch so that if the Firebase SDK
+  // fails to load for ANY reason (offline, network/firewall blocking
+  // gstatic.com, ad-blocker, or the config still being placeholder
+  // values) the page still finishes setting up and falls back to a
+  // local, in-memory mode instead of going fully inert.
+  async function setupFirebase() {
+    const configIsFilledIn = firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY";
+
+    if (configIsFilledIn) {
+      try {
+        const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+        const firestoreMod = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+
+        const app = initializeApp(firebaseConfig);
+        db = firestoreMod.getFirestore(app);
+        fbFns = {
+          collection: firestoreMod.collection, addDoc: firestoreMod.addDoc,
+          getDocs: firestoreMod.getDocs, getDoc: firestoreMod.getDoc,
+          doc: firestoreMod.doc, setDoc: firestoreMod.setDoc,
+          deleteDoc: firestoreMod.deleteDoc, onSnapshot: firestoreMod.onSnapshot,
+          query: firestoreMod.query, orderBy: firestoreMod.orderBy,
+          serverTimestamp: firestoreMod.serverTimestamp
+        };
+        firebaseReady = true;
+      } catch (e) {
+        console.error("Firebase failed to load/initialize — falling back to local mode.", e);
+        firebaseReady = false;
+      }
+    } else {
+      firebaseReady = false;
+    }
+
+    window.__fb = { db, firebaseReady, ...fbFns };
+    window.dispatchEvent(new Event("fb-ready"));
+  }
+
+  setupFirebase();
+</script>
+
+<style>
+  :root{
+    --pitch:#0e3b2e;
+    --pitch-deep:#082821;
+    --cream:#f3ead9;
+    --cream-dim:#e3d6bc;
+    --willow:#c98a3c;
+    --willow-bright:#e3a857;
+    --leather:#a3271f;
+    --leather-bright:#c8392f;
+    --ink:#142019;
+    --line:rgba(243,234,217,0.16);
+    --teamA:#c8392f;
+    --teamB:#2f6fb0;
+    --teamC:#3f8f5c;
+    --font-display:"Big Shoulders Display","Arial Narrow",sans-serif;
+    --font-body:"Source Sans Pro","Segoe UI",sans-serif;
+    --font-mono:"Roboto Mono",monospace;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Source+Sans+Pro:wght@400;600;700&family=Roboto+Mono:wght@400;500;700&display=swap');
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+
+  html{scroll-behavior:smooth;}
+
+  body{
+    background:
+      radial-gradient(ellipse at top, rgba(255,255,255,0.04), transparent 60%),
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 80px),
+      linear-gradient(180deg, var(--pitch) 0%, var(--pitch-deep) 100%);
+    color:var(--cream);
+    font-family:var(--font-body);
+    min-height:100vh;
+    padding-bottom:80px;
+  }
+
+  ::selection{background:var(--willow); color:var(--ink);}
+
+  /* ---------- Crease/seam decorative line ---------- */
+  .seam-rule{
+    height:3px;
+    background:repeating-linear-gradient(90deg, var(--cream) 0 10px, transparent 10px 16px);
+    opacity:0.25;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    position:sticky; top:0; z-index:50;
+    background:linear-gradient(180deg, var(--pitch-deep) 0%, rgba(8,40,33,0.96) 100%);
+    border-bottom:1px solid var(--line);
+    backdrop-filter:blur(6px);
+  }
+  .header-inner{
+    max-width:1100px; margin:0 auto;
+    padding:18px 24px;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; flex-wrap:wrap;
+  }
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand-mark{
+    width:42px; height:42px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--leather-bright), var(--leather) 55%, #6e1814 100%);
+    position:relative; flex-shrink:0;
+    box-shadow:0 2px 8px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.15);
+  }
+  .brand-mark::before, .brand-mark::after{
+    content:""; position:absolute; top:50%; left:50%;
+    width:30px; height:1px; background:var(--cream); opacity:0.85;
+  }
+  .brand-mark::before{transform:translate(-50%,-50%) rotate(20deg) scaleX(0.9);
+    border-top:1px dashed var(--cream); height:0;}
+  .brand-mark::after{transform:translate(-50%,-50%) rotate(-20deg) scaleX(0.9);
+    border-top:1px dashed var(--cream); height:0;}
+  .brand-text h1{
+    font-family:var(--font-display); font-weight:800;
+    font-size:clamp(20px,3vw,26px); letter-spacing:0.02em;
+    line-height:1; text-transform:uppercase;
+  }
+  .brand-text span{
+    display:block; font-size:11px; letter-spacing:0.18em;
+    text-transform:uppercase; color:var(--willow-bright); margin-top:4px;
+  }
+
+  .nav-actions{display:flex; gap:10px; align-items:center;}
+
+  .count-pill{
+    font-family:var(--font-mono);
+    background:rgba(243,234,217,0.07);
+    border:1px solid var(--line);
+    padding:8px 14px; border-radius:999px;
+    font-size:13px; display:flex; align-items:center; gap:8px;
+  }
+  .count-pill b{color:var(--willow-bright); font-size:15px;}
+  .dot-live{width:7px; height:7px; border-radius:50%; background:#5fd38a; box-shadow:0 0 6px #5fd38a; animation:pulse 1.8s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.35;}}
+
+  button{font-family:var(--font-body); cursor:pointer; border:none;}
+
+  .btn{
+    font-family:var(--font-display); font-weight:700; text-transform:uppercase;
+    letter-spacing:0.04em; font-size:14px;
+    padding:11px 22px; border-radius:6px;
+    transition:transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  }
+  .btn-primary{
+    background:linear-gradient(180deg, var(--willow-bright), var(--willow));
+    color:var(--ink);
+    box-shadow:0 3px 0 #8a5e22, 0 6px 14px rgba(0,0,0,0.35);
+  }
+  .btn-primary:hover{transform:translateY(-1px); box-shadow:0 4px 0 #8a5e22, 0 8px 18px rgba(0,0,0,0.4);}
+  .btn-primary:active{transform:translateY(2px); box-shadow:0 1px 0 #8a5e22;}
+  .btn-ghost{
+    background:transparent; color:var(--cream);
+    border:1px solid var(--line);
+  }
+  .btn-ghost:hover{background:rgba(243,234,217,0.07); border-color:rgba(243,234,217,0.35);}
+  .btn-danger{
+    background:linear-gradient(180deg, var(--leather-bright), var(--leather));
+    color:var(--cream);
+    box-shadow:0 3px 0 #6e1814, 0 6px 14px rgba(0,0,0,0.35);
+  }
+  .btn:disabled{opacity:0.45; cursor:not-allowed; transform:none !important; box-shadow:none !important;}
+
+  /* ---------- Layout ---------- */
+  main{max-width:1100px; margin:0 auto; padding:0 24px;}
+
+  .hero{
+    padding:56px 0 36px;
+    text-align:center;
+  }
+  .hero .eyebrow{
+    font-family:var(--font-mono); letter-spacing:0.3em; text-transform:uppercase;
+    font-size:12px; color:var(--willow-bright); margin-bottom:14px;
+  }
+  .hero h2{
+    font-family:var(--font-display); font-weight:900;
+    font-size:clamp(36px,6.5vw,64px); text-transform:uppercase;
+    line-height:0.95; letter-spacing:0.01em;
+  }
+  .hero h2 em{font-style:normal; color:var(--willow-bright);}
+  .hero p{
+    max-width:560px; margin:18px auto 0; color:var(--cream-dim); font-size:16px; line-height:1.6;
+  }
+
+  .scoreboard{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
+    background:var(--line);
+    border:1px solid var(--line); border-radius:10px; overflow:hidden;
+    margin:34px 0 8px;
+  }
+  .scoreboard.scoreboard-single{
+    grid-template-columns:1fr; max-width:280px; margin-left:auto; margin-right:auto;
+  }
+  .scoreboard.scoreboard-single .cell{padding:24px 12px;}
+  .scoreboard.scoreboard-single .cell .num{font-size:44px;}
+  .scoreboard .cell{
+    background:rgba(8,40,33,0.55);
+    padding:18px 12px; text-align:center;
+  }
+  .scoreboard .cell .num{font-family:var(--font-display); font-weight:800; font-size:34px; color:var(--willow-bright); line-height:1;}
+  .scoreboard .cell .lbl{font-family:var(--font-mono); font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--cream-dim); margin-top:6px;}
+
+  /* ---------- Card ---------- */
+  .card{
+    background:linear-gradient(180deg, rgba(243,234,217,0.05), rgba(243,234,217,0.02));
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:32px;
+    margin-bottom:28px;
+    position:relative;
+  }
+  .card-title{
+    font-family:var(--font-display); font-weight:800; text-transform:uppercase;
+    font-size:22px; letter-spacing:0.02em; margin-bottom:6px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .card-sub{color:var(--cream-dim); font-size:14px; margin-bottom:24px;}
+
+  /* ---------- Form ---------- */
+  .field{margin-bottom:20px;}
+  .field label{
+    display:block; font-family:var(--font-mono); font-size:12px;
+    letter-spacing:0.1em; text-transform:uppercase; color:var(--willow-bright);
+    margin-bottom:8px;
+  }
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  input[type=text]{
+    width:100%; background:rgba(8,40,33,0.5);
+    border:1px solid var(--line); border-radius:7px;
+    padding:13px 14px; color:var(--cream); font-size:15px;
+    transition:border-color 0.15s;
+  }
+  input[type=text]:focus{outline:none; border-color:var(--willow-bright); background:rgba(8,40,33,0.7);}
+  input[type=text]::placeholder{color:rgba(243,234,217,0.32);}
+
+  .choice-group{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+  .choice-group.two{grid-template-columns:repeat(2,1fr);}
+  .choice{
+    border:1px solid var(--line); border-radius:8px;
+    padding:16px 10px; text-align:center; background:rgba(8,40,33,0.35);
+    transition:all 0.15s;
+  }
+  .choice .ic{font-size:22px; display:block; margin-bottom:6px;}
+  .choice .tl{font-family:var(--font-display); font-weight:700; font-size:15px; text-transform:uppercase; letter-spacing:0.02em;}
+  .choice:hover{border-color:rgba(227,168,87,0.5); background:rgba(8,40,33,0.55);}
+  .choice.selected{
+    border-color:var(--willow-bright);
+    background:linear-gradient(180deg, rgba(227,168,87,0.18), rgba(227,168,87,0.06));
+    box-shadow:0 0 0 1px var(--willow-bright);
+  }
+
+  .followup{
+    max-height:0; overflow:hidden; opacity:0;
+    transition:max-height 0.35s ease, opacity 0.3s ease, margin 0.35s ease;
+  }
+  .followup.open{max-height:220px; opacity:1; margin-top:20px;}
+
+  .form-msg{
+    font-size:13.5px; padding:11px 14px; border-radius:7px; margin-top:16px;
+    display:none; align-items:center; gap:8px;
+  }
+  .form-msg.show{display:flex;}
+  .form-msg.err{background:rgba(200,57,47,0.18); border:1px solid rgba(200,57,47,0.5); color:#ffb3ac;}
+  .form-msg.ok{background:rgba(63,143,92,0.18); border:1px solid rgba(63,143,92,0.5); color:#a6e6bd;}
+
+  /* ---------- Roster list ---------- */
+  .roster-list{display:flex; flex-direction:column; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:9px; overflow:hidden;}
+  .roster-row{
+    background:rgba(8,40,33,0.45);
+    padding:13px 16px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+    font-size:14.5px;
+  }
+  .roster-row .name{font-weight:600;}
+  .roster-row .meta{display:flex; gap:8px; align-items:center;}
+  .tag{
+    font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase;
+    padding:4px 9px; border-radius:999px; border:1px solid var(--line); color:var(--cream-dim);
+    white-space:nowrap;
+  }
+  .tag.bat{border-color:rgba(227,168,87,0.5); color:var(--willow-bright);}
+  .tag.bowl{border-color:rgba(200,57,47,0.5); color:#ff8f86;}
+  .tag.all{border-color:rgba(95,211,138,0.5); color:#7fe3a4;}
+  .empty-note{color:var(--cream-dim); font-size:14px; padding:18px; text-align:center;}
+
+  /* ---------- Teams ---------- */
+  .teams-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px;}
+  .team-card{
+    border-radius:12px; overflow:hidden; border:1px solid var(--line);
+    background:rgba(8,40,33,0.4);
+  }
+  .team-head{
+    padding:18px 20px; display:flex; align-items:center; justify-content:space-between;
+  }
+  .team-head h3{font-family:var(--font-display); font-weight:800; font-size:22px; text-transform:uppercase; color:#fff;}
+  .team-head .cnt{font-family:var(--font-mono); font-size:12px; background:rgba(0,0,0,0.25); padding:4px 10px; border-radius:999px;}
+  .teamA .team-head{background:linear-gradient(135deg, var(--teamA), #7a201a);}
+  .teamB .team-head{background:linear-gradient(135deg, var(--teamB), #1c4773);}
+  .teamC .team-head{background:linear-gradient(135deg, var(--teamC), #285e3d);}
+  .team-stats{
+    display:flex; gap:14px; padding:12px 20px; font-family:var(--font-mono); font-size:11.5px;
+    color:var(--cream-dim); border-bottom:1px solid var(--line); letter-spacing:0.04em;
+  }
+  .team-stats b{color:var(--cream);}
+  .team-players{padding:10px 14px 16px;}
+  .player-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 8px; border-bottom:1px solid rgba(255,255,255,0.05);
+    font-size:14px;
+  }
+  .player-row:last-child{border-bottom:none;}
+
+  /* ---------- Modal ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(5,15,12,0.78);
+    display:none; align-items:center; justify-content:center; z-index:100;
+    padding:20px; backdrop-filter:blur(3px);
+  }
+  .modal-backdrop.show{display:flex;}
+  .modal{
+    background:var(--pitch-deep); border:1px solid var(--line); border-radius:12px;
+    padding:30px; max-width:380px; width:100%;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal h3{font-family:var(--font-display); font-weight:800; text-transform:uppercase; font-size:20px; margin-bottom:8px;}
+  .modal p{color:var(--cream-dim); font-size:14px; margin-bottom:18px; line-height:1.5;}
+  .modal input{margin-bottom:14px;}
+  .modal-actions{display:flex; gap:10px; justify-content:flex-end;}
+  .modal.modal-wide{max-width:520px;}
+  .modal-wide .roster-list{max-height:50vh; overflow-y:auto;}
+
+  footer{
+    max-width:1100px; margin:40px auto 0; padding:24px; text-align:center;
+    color:rgba(243,234,217,0.35); font-size:12.5px; font-family:var(--font-mono);
+  }
+
+  .fb-warning{
+    background:rgba(200,57,47,0.15); border:1px solid rgba(200,57,47,0.4);
+    color:#ffb3ac; padding:14px 18px; border-radius:8px; font-size:13.5px;
+    margin-bottom:24px; line-height:1.6; display:none;
+  }
+  .fb-warning.show{display:block;}
+  .fb-warning code{background:rgba(0,0,0,0.3); padding:2px 6px; border-radius:4px; font-family:var(--font-mono);}
+
+  .spinner{
+    width:16px; height:16px; border-radius:50%;
+    border:2px solid rgba(20,32,25,0.3); border-top-color:var(--ink);
+    animation:spin 0.7s linear infinite; display:inline-block; vertical-align:-3px;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  @media (max-width:640px){
+    .row2{grid-template-columns:1fr;}
+    .scoreboard{grid-template-columns:1fr;}
+    .header-inner{flex-direction:column; align-items:stretch;}
+    .nav-actions{flex-wrap:wrap; width:100%;}
+    .nav-actions .btn{flex:1 1 auto;}
+    .nav-actions .count-pill{flex:1 1 100%; justify-content:center;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-text">
+        <h1>KSCY</h1>
+        <span>Tournament Registration</span>
+      </div>
+    </div>
+    <div class="nav-actions">
+      <div class="count-pill"><span class="dot-live"></span> <b id="liveCount">0</b>&nbsp;registered</div>
+      <button class="btn btn-ghost" id="openRosterModal">View Roster</button>
+      <button class="btn btn-primary" id="openGenerateModal">Generate Teams</button>
+    </div>
+  </div>
+  <div class="seam-rule"></div>
+</header>
+
+<main>
+
+  <div class="fb-warning" id="fbWarning">
+    <strong>Firebase isn't connected yet.</strong> This page is showing the design and working with temporary local data only — entries will be lost on refresh. Open <code>index.html</code> in a code editor and paste your Firebase config where it says <code>PASTE YOUR FIREBASE CONFIG HERE</code> near the top of the file. See the comment block for step-by-step setup instructions.
+  </div>
+
+  <section class="hero">
+    <div class="eyebrow">Season Opener · 3 Team Knockout</div>
+    <h2>Pick your <em>guard</em>.<br>Take your <em>mark</em>.</h2>
+    <p>Register once before the deadline. Tell us how you play — the squads are drawn up automatically to keep bat, ball, and numbers fair across all three sides.</p>
+
+    <div class="scoreboard scoreboard-single">
+      <div class="cell"><div class="num" id="sbTotal">0</div><div class="lbl">Registered</div></div>
+    </div>
+  </section>
+
+  <!-- Registration Card -->
+  <section class="card" id="registerCard">
+    <div class="card-title">📋 Register to Play</div>
+    <div class="card-sub">One entry per person. Names can't be repeated, so use your full first and last name.</div>
+
+    <form id="regForm" autocomplete="off">
+      <div class="row2">
+        <div class="field">
+          <label for="firstName">First Name</label>
+          <input type="text" id="firstName" placeholder="e.g. Imran" required>
+        </div>
+        <div class="field">
+          <label for="lastName">Last Name</label>
+          <input type="text" id="lastName" placeholder="e.g. Khan" required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>What do you enjoy most in cricket?</label>
+        <div class="choice-group" id="q1Group">
+          <div class="choice" data-value="batting">
+            <span class="ic">🏏</span><span class="tl">Batting</span>
+          </div>
+          <div class="choice" data-value="bowling">
+            <span class="ic">⚾</span><span class="tl">Bowling</span>
+          </div>
+          <div class="choice" data-value="both">
+            <span class="ic">⭐</span><span class="tl">Both</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="followup" id="followupBatting">
+        <div class="field">
+          <label>Can you also bowl if needed?</label>
+          <div class="choice-group two" id="q2BattingGroup">
+            <div class="choice" data-value="yes"><span class="ic">✅</span><span class="tl">Yes</span></div>
+            <div class="choice" data-value="no"><span class="ic">✖️</span><span class="tl">No</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="followup" id="followupBowling">
+        <div class="field">
+          <label>Can you also bat if needed?</label>
+          <div class="choice-group two" id="q2BowlingGroup">
+            <div class="choice" data-value="yes"><span class="ic">✅</span><span class="tl">Yes</span></div>
+            <div class="choice" data-value="no"><span class="ic">✖️</span><span class="tl">No</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-msg" id="formMsg"></div>
+
+      <div style="margin-top:24px;">
+        <button type="submit" class="btn btn-primary" id="submitBtn" style="width:100%;">Submit Registration</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- Teams Section -->
+  <section id="teamsSection" style="display:none;">
+    <div class="card-title" style="margin-bottom:6px;">🏆 The Three Sides</div>
+    <div class="card-sub" style="margin-bottom:20px;">Drawn up automatically for balance across batting, bowling, and all-round strength.</div>
+    <div class="teams-grid" id="teamsGrid"></div>
+  </section>
+
+</main>
+
+<footer>KSCY &nbsp;·&nbsp; Built for fair play, every over.</footer>
+
+<!-- Password Modal (Generate Teams) -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h3>Generate Teams</h3>
+    <p>Enter the admin password to shuffle all registered players into Team A, B and C.</p>
+    <input type="password" id="adminPassword" placeholder="Password">
+    <div class="form-msg err" id="modalMsg" style="margin-top:0;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="cancelModal">Cancel</button>
+      <button class="btn btn-danger" id="confirmGenerate">Shuffle Teams</button>
+    </div>
+  </div>
+</div>
+
+<!-- Password Modal (View Roster) -->
+<div class="modal-backdrop" id="rosterModalBackdrop">
+  <div class="modal" id="rosterModalInner">
+    <div id="rosterPasswordStep">
+      <h3>View Roster</h3>
+      <p>Enter the admin password to see everyone registered so far.</p>
+      <input type="password" id="rosterPassword" placeholder="Password">
+      <div class="form-msg err" id="rosterModalMsg" style="margin-top:0;"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="cancelRosterModal">Cancel</button>
+        <button class="btn btn-primary" id="confirmRoster">View Roster</button>
+      </div>
+    </div>
+    <div id="rosterListStep" style="display:none;">
+      <h3>Who's In So Far</h3>
+      <p>Live list of everyone registered before teams are drawn.</p>
+      <div class="roster-list" id="rosterList">
+        <div class="empty-note">No one registered yet.</div>
+      </div>
+      <div class="modal-actions" style="margin-top:18px;">
+        <button class="btn btn-ghost" id="closeRosterModal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+window.addEventListener('fb-ready', () => {
+  const fb = window.__fb;
+  const PASSWORD = "22";
+  const PLAYERS_COLLECTION = "players";
+  const TEAMS_DOC = "tournament/teams";
+
+  let localPlayers = [];      // used only if Firebase isn't configured
+  let usingLocal = !fb.firebaseReady;
+
+  if (usingLocal) {
+    document.getElementById('fbWarning').classList.add('show');
+  }
+
+  // ---------------- Form state ----------------
+  let q1 = null;   // 'batting' | 'bowling' | 'both'
+  let q2 = null;   // 'yes' | 'no'
+
+  const q1Group = document.getElementById('q1Group');
+  const followupBatting = document.getElementById('followupBatting');
+  const followupBowling = document.getElementById('followupBowling');
+  const q2BattingGroup = document.getElementById('q2BattingGroup');
+  const q2BowlingGroup = document.getElementById('q2BowlingGroup');
+  const formMsg = document.getElementById('formMsg');
+  const submitBtn = document.getElementById('submitBtn');
+
+  function selectChoice(group, value, target) {
+    [...group.children].forEach(c => c.classList.toggle('selected', c.dataset.value === value));
+  }
+
+  q1Group.addEventListener('click', (e) => {
+    const choice = e.target.closest('.choice');
+    if (!choice) return;
+    q1 = choice.dataset.value;
+    q2 = null;
+    selectChoice(q1Group, q1);
+    [...q2BattingGroup.children].forEach(c => c.classList.remove('selected'));
+    [...q2BowlingGroup.children].forEach(c => c.classList.remove('selected'));
+
+    followupBatting.classList.toggle('open', q1 === 'batting');
+    followupBowling.classList.toggle('open', q1 === 'bowling');
+  });
+
+  q2BattingGroup.addEventListener('click', (e) => {
+    const choice = e.target.closest('.choice');
+    if (!choice) return;
+    q2 = choice.dataset.value;
+    selectChoice(q2BattingGroup, q2);
+  });
+  q2BowlingGroup.addEventListener('click', (e) => {
+    const choice = e.target.closest('.choice');
+    if (!choice) return;
+    q2 = choice.dataset.value;
+    selectChoice(q2BowlingGroup, q2);
+  });
+
+  function showMsg(text, type) {
+    formMsg.textContent = text;
+    formMsg.className = 'form-msg show ' + type;
+  }
+  function clearMsg() {
+    formMsg.className = 'form-msg';
+  }
+
+  function normalizeName(s) {
+    return s.trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
+  // Derive a role classification from answers
+  function classify(q1, q2) {
+    if (q1 === 'both') return { role: 'allrounder', label: 'All-rounder', battingSkill: 1, bowlingSkill: 1 };
+    if (q1 === 'batting') {
+      return q2 === 'yes'
+        ? { role: 'batting-allrounder', label: 'Batter (can bowl)', battingSkill: 1, bowlingSkill: 0.5 }
+        : { role: 'specialist-batter', label: 'Specialist Batter', battingSkill: 1, bowlingSkill: 0 };
+    }
+    if (q1 === 'bowling') {
+      return q2 === 'yes'
+        ? { role: 'bowling-allrounder', label: 'Bowler (can bat)', battingSkill: 0.5, bowlingSkill: 1 }
+        : { role: 'specialist-bowler', label: 'Specialist Bowler', battingSkill: 0, bowlingSkill: 1 };
+    }
+    return { role: 'unknown', label: 'Unspecified', battingSkill: 0, bowlingSkill: 0 };
+  }
+
+  async function getAllPlayers() {
+    if (usingLocal) return localPlayers;
+    const snap = await fb.getDocs(fb.query(fb.collection(fb.db, PLAYERS_COLLECTION), fb.orderBy('createdAtLocal', 'asc')));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+
+  document.getElementById('regForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearMsg();
+
+    const firstName = document.getElementById('firstName').value.trim();
+    const lastName = document.getElementById('lastName').value.trim();
+
+    if (!firstName || !lastName) {
+      showMsg('Please enter both your first and last name.', 'err');
+      return;
+    }
+    if (!q1) {
+      showMsg('Please tell us what you enjoy most: batting, bowling, or both.', 'err');
+      return;
+    }
+    if (q1 !== 'both' && !q2) {
+      showMsg('Please answer the follow-up question.', 'err');
+      return;
+    }
+
+    const fullName = `${firstName} ${lastName}`;
+    const key = normalizeName(fullName);
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner"></span> Submitting…';
+
+    try {
+      const existing = await getAllPlayers();
+      if (existing.some(p => normalizeName(p.fullName) === key)) {
+        showMsg(`"${fullName}" is already registered. Names can't be repeated — try adding a middle initial if this is a different person.`, 'err');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Registration';
+        return;
+      }
+
+      const cls = classify(q1, q2);
+      const playerDoc = {
+        firstName, lastName, fullName,
+        q1, q2: q1 === 'both' ? null : q2,
+        role: cls.role, roleLabel: cls.label,
+        battingSkill: cls.battingSkill, bowlingSkill: cls.bowlingSkill,
+        createdAtLocal: Date.now()
+      };
+
+      if (usingLocal) {
+        playerDoc.id = 'local_' + Date.now();
+        localPlayers.push(playerDoc);
+        renderRoster();
+      } else {
+        playerDoc.createdAt = fb.serverTimestamp();
+        await fb.addDoc(fb.collection(fb.db, PLAYERS_COLLECTION), playerDoc);
+      }
+
+      showMsg(`You're in, ${firstName}! Registration confirmed.`, 'ok');
+      document.getElementById('regForm').reset();
+      q1 = null; q2 = null;
+      [...q1Group.children].forEach(c => c.classList.remove('selected'));
+      followupBatting.classList.remove('open');
+      followupBowling.classList.remove('open');
+
+    } catch (err) {
+      console.error(err);
+      showMsg('Something went wrong submitting your registration. Please try again.', 'err');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit Registration';
+    }
+  });
+
+  // ---------------- Roster + scoreboard rendering ----------------
+  function roleTagClass(role) {
+    if (role === 'allrounder') return 'all';
+    if (role.includes('batter') || role === 'batting-allrounder') return 'bat';
+    return 'bowl';
+  }
+
+  function renderRoster(players) {
+    const list = players || localPlayers;
+    const rosterList = document.getElementById('rosterList');
+    const liveCount = document.getElementById('liveCount');
+    const sbTotal = document.getElementById('sbTotal');
+
+    liveCount.textContent = list.length;
+    sbTotal.textContent = list.length;
+
+    if (list.length === 0) {
+      rosterList.innerHTML = '<div class="empty-note">No one registered yet — be the first.</div>';
+      return;
+    }
+
+    rosterList.innerHTML = list.map(p => `
+      <div class="roster-row">
+        <span class="name">${escapeHtml(p.fullName)}</span>
+        <span class="meta"><span class="tag ${roleTagClass(p.role)}">${escapeHtml(p.roleLabel)}</span></span>
+      </div>
+    `).join('');
+  }
+
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function showFbErrorBanner(reason) {
+    const el = document.getElementById('fbWarning');
+    el.innerHTML = `<strong>Firebase connected, but Firestore isn't reachable yet.</strong> This usually means the database hasn't been created in the Firebase console, or the security rules haven't been published. (${escapeHtml(reason)}) See the setup comment at the top of <code>index.html</code> for the two remaining steps.`;
+    el.classList.add('show');
+  }
+
+  if (!usingLocal) {
+    fb.onSnapshot(fb.query(fb.collection(fb.db, PLAYERS_COLLECTION), fb.orderBy('createdAtLocal', 'asc')), (snap) => {
+      const players = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderRoster(players);
+    }, (err) => { console.error('Roster snapshot error', err); showFbErrorBanner(err.code || err.message || 'connection error'); });
+
+    // Live team listener too, in case teams were generated elsewhere
+    fb.onSnapshot(fb.doc(fb.db, 'tournament', 'teams'), (snap) => {
+      if (snap.exists()) {
+        renderTeams(snap.data().teams);
+      }
+    }, (err) => { console.error('Teams snapshot error', err); showFbErrorBanner(err.code || err.message || 'connection error'); });
+  } else {
+    renderRoster();
+  }
+
+  // ---------------- Team generation algorithm ----------------
+  // Strategy: classify into 4 buckets ordered by "rarity/value":
+  //   1) Pure all-rounders (both)
+  //   2) Batting all-rounders (primarily batting, can bowl)
+  //   3) Bowling all-rounders (primarily bowling, can bat)
+  //   4) Specialist batters
+  //   5) Specialist bowlers
+  // Shuffle within each bucket, then snake-distribute across teams,
+  // always assigning next to whichever team currently has fewest
+  // players (ties broken by lowest combined skill total) so that
+  // size AND batting/bowling strength stay balanced together.
+
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function generateTeams(players) {
+    const teams = { A: [], B: [], C: [] };
+    const teamKeys = ['A', 'B', 'C'];
+
+    const buckets = {
+      allrounder: shuffle(players.filter(p => p.role === 'allrounder')),
+      battingAR: shuffle(players.filter(p => p.role === 'batting-allrounder')),
+      bowlingAR: shuffle(players.filter(p => p.role === 'bowling-allrounder')),
+      batter: shuffle(players.filter(p => p.role === 'specialist-batter')),
+      bowler: shuffle(players.filter(p => p.role === 'specialist-bowler')),
+    };
+
+    const orderedQueue = [
+      ...buckets.allrounder,
+      ...buckets.battingAR,
+      ...buckets.bowlingAR,
+      ...buckets.batter,
+      ...buckets.bowler,
+    ];
+
+    function teamScore(key) {
+      const t = teams[key];
+      const bat = t.reduce((s, p) => s + p.battingSkill, 0);
+      const bowl = t.reduce((s, p) => s + p.bowlingSkill, 0);
+      return { size: t.length, strength: bat + bowl };
+    }
+
+    for (const player of orderedQueue) {
+      // pick team with fewest players; tie-break by lowest combined strength
+      let best = teamKeys[0];
+      let bestScore = teamScore(best);
+      for (const k of teamKeys.slice(1)) {
+        const s = teamScore(k);
+        if (s.size < bestScore.size || (s.size === bestScore.size && s.strength < bestScore.strength)) {
+          best = k;
+          bestScore = s;
+        }
+      }
+      teams[best].push(player);
+    }
+
+    return teams;
+  }
+
+  async function saveTeams(teams) {
+    if (usingLocal) {
+      renderTeams(teams);
+      return;
+    }
+    await fb.setDoc(fb.doc(fb.db, 'tournament', 'teams'), {
+      teams,
+      generatedAt: fb.serverTimestamp(),
+      generatedAtLocal: Date.now()
+    });
+  }
+
+  function teamSummary(team) {
+    const bat = team.filter(p => p.battingSkill >= p.bowlingSkill && p.role !== 'allrounder').length;
+    const bowl = team.filter(p => p.bowlingSkill > p.battingSkill).length;
+    const all = team.filter(p => p.role === 'allrounder').length;
+    return { bat, bowl, all };
+  }
+
+  function renderTeams(teams) {
+    const section = document.getElementById('teamsSection');
+    const grid = document.getElementById('teamsGrid');
+    section.style.display = 'block';
+
+    const teamMeta = {
+      A: { cls: 'teamA', name: 'Team A' },
+      B: { cls: 'teamB', name: 'Team B' },
+      C: { cls: 'teamC', name: 'Team C' },
+    };
+
+    grid.innerHTML = Object.keys(teams).map(key => {
+      const team = teams[key];
+      const sum = teamSummary(team);
+      const meta = teamMeta[key];
+      const rows = team.map(p => `
+        <div class="player-row">
+          <span>${escapeHtml(p.fullName)}</span>
+          <span class="tag ${roleTagClass(p.role)}">${escapeHtml(p.roleLabel)}</span>
+        </div>
+      `).join('');
+      return `
+        <div class="team-card ${meta.cls}">
+          <div class="team-head">
+            <h3>${meta.name}</h3>
+            <span class="cnt">${team.length} players</span>
+          </div>
+          <div class="team-stats">
+            <span>🏏 <b>${sum.bat}</b> batters</span>
+            <span>⚾ <b>${sum.bowl}</b> bowlers</span>
+            <span>⭐ <b>${sum.all}</b> all-rounders</span>
+          </div>
+          <div class="team-players">${rows || '<div class="empty-note">No players</div>'}</div>
+        </div>
+      `;
+    }).join('');
+
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---------------- Modal / generate flow ----------------
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  const adminPassword = document.getElementById('adminPassword');
+  const modalMsg = document.getElementById('modalMsg');
+  const confirmGenerate = document.getElementById('confirmGenerate');
+
+  document.getElementById('openGenerateModal').addEventListener('click', () => {
+    adminPassword.value = '';
+    modalMsg.className = 'form-msg err';
+    modalBackdrop.classList.add('show');
+    setTimeout(() => adminPassword.focus(), 50);
+  });
+  document.getElementById('cancelModal').addEventListener('click', () => {
+    modalBackdrop.classList.remove('show');
+  });
+  modalBackdrop.addEventListener('click', (e) => {
+    if (e.target === modalBackdrop) modalBackdrop.classList.remove('show');
+  });
+
+  confirmGenerate.addEventListener('click', async () => {
+    if (adminPassword.value !== PASSWORD) {
+      modalMsg.textContent = 'Incorrect password.';
+      modalMsg.className = 'form-msg err show';
+      return;
+    }
+
+    confirmGenerate.disabled = true;
+    confirmGenerate.innerHTML = '<span class="spinner"></span> Shuffling…';
+
+    try {
+      const players = await getAllPlayers();
+      if (players.length < 3) {
+        modalMsg.textContent = 'Need at least 3 registered players to form teams.';
+        modalMsg.className = 'form-msg err show';
+        return;
+      }
+      const teams = generateTeams(players);
+      await saveTeams(teams);
+      modalBackdrop.classList.remove('show');
+    } catch (err) {
+      console.error(err);
+      modalMsg.textContent = 'Something went wrong generating teams. Please try again.';
+      modalMsg.className = 'form-msg err show';
+    } finally {
+      confirmGenerate.disabled = false;
+      confirmGenerate.textContent = 'Shuffle Teams';
+    }
+  });
+  adminPassword.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') confirmGenerate.click();
+  });
+
+  // ---------------- Modal / view roster flow (password gated) ----------------
+  const rosterModalBackdrop = document.getElementById('rosterModalBackdrop');
+  const rosterModalInner = document.getElementById('rosterModalInner');
+  const rosterPasswordStep = document.getElementById('rosterPasswordStep');
+  const rosterListStep = document.getElementById('rosterListStep');
+  const rosterPassword = document.getElementById('rosterPassword');
+  const rosterModalMsg = document.getElementById('rosterModalMsg');
+  const confirmRoster = document.getElementById('confirmRoster');
+
+  function resetRosterModalToPasswordStep() {
+    rosterPasswordStep.style.display = '';
+    rosterListStep.style.display = 'none';
+    rosterModalInner.classList.remove('modal-wide');
+    rosterPassword.value = '';
+    rosterModalMsg.className = 'form-msg err';
+  }
+
+  document.getElementById('openRosterModal').addEventListener('click', () => {
+    resetRosterModalToPasswordStep();
+    rosterModalBackdrop.classList.add('show');
+    setTimeout(() => rosterPassword.focus(), 50);
+  });
+  document.getElementById('cancelRosterModal').addEventListener('click', () => {
+    rosterModalBackdrop.classList.remove('show');
+  });
+  document.getElementById('closeRosterModal').addEventListener('click', () => {
+    rosterModalBackdrop.classList.remove('show');
+  });
+  rosterModalBackdrop.addEventListener('click', (e) => {
+    if (e.target === rosterModalBackdrop) rosterModalBackdrop.classList.remove('show');
+  });
+
+  confirmRoster.addEventListener('click', () => {
+    if (rosterPassword.value !== PASSWORD) {
+      rosterModalMsg.textContent = 'Incorrect password.';
+      rosterModalMsg.className = 'form-msg err show';
+      return;
+    }
+    rosterPasswordStep.style.display = 'none';
+    rosterListStep.style.display = '';
+    rosterModalInner.classList.add('modal-wide');
+  });
+  rosterPassword.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') confirmRoster.click();
+  });
+
+  // Load existing teams on first paint if using Firebase (snapshot above handles live updates,
+  // but fetch once immediately too for instant paint)
+  if (!usingLocal) {
+    fb.getDoc(fb.doc(fb.db, 'tournament', 'teams')).then(snap => {
+      if (snap.exists()) renderTeams(snap.data().teams);
+    }).catch(() => {});
+  }
+
+});
+</script>
+
+</body>
+</html>
