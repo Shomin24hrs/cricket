@@ -55,18 +55,26 @@
 
   async function setupFirebase() {
     const configIsFilledIn = firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY";
+    const t0 = Date.now();
+    console.log('[KSCY] setupFirebase starting, configIsFilledIn=', configIsFilledIn);
 
     if (configIsFilledIn) {
       try {
+        console.log('[KSCY] importing firebase-app.js...');
         const { initializeApp } = await withTimeout(
           import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"), 5000, 'IMPORT_APP'
         );
+        console.log('[KSCY] firebase-app.js loaded at +', Date.now() - t0, 'ms');
+
+        console.log('[KSCY] importing firebase-firestore.js...');
         const firestoreMod = await withTimeout(
           import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"), 5000, 'IMPORT_FIRESTORE'
         );
+        console.log('[KSCY] firebase-firestore.js loaded at +', Date.now() - t0, 'ms');
 
         const app = initializeApp(firebaseConfig);
         db = firestoreMod.getFirestore(app);
+        console.log('[KSCY] Firestore initialized at +', Date.now() - t0, 'ms');
         fbFns = {
           collection: firestoreMod.collection, addDoc: firestoreMod.addDoc,
           getDocs: firestoreMod.getDocs, getDoc: firestoreMod.getDoc,
@@ -77,13 +85,14 @@
         };
         firebaseReady = true;
       } catch (e) {
-        console.error("Firebase failed to load/initialize — falling back to local mode.", e);
+        console.error('[KSCY] Firebase failed to load/initialize at +' + (Date.now() - t0) + 'ms — falling back to local mode.', e);
         firebaseReady = false;
       }
     } else {
       firebaseReady = false;
     }
 
+    console.log('[KSCY] setupFirebase finished at +', Date.now() - t0, 'ms. firebaseReady=', firebaseReady);
     window.__fb = { db, firebaseReady, ...fbFns };
     if (!window.__fbReadyFired) {
       window.__fbReadyFired = true;
@@ -725,10 +734,17 @@ function initApp() {
     }
 
     try {
+      console.log('[KSCY] submit started, usingLocal=', usingLocal, 'fbReadyFired=', window.__fbReadyFired);
       await Promise.race([
         (async () => {
+          console.log('[KSCY] waiting on fbReadyPromise...');
           await fbReadyPromise;
+          console.log('[KSCY] fbReadyPromise resolved. usingLocal=', usingLocal);
+
+          console.log('[KSCY] calling getAllPlayers...');
           const existing = await getAllPlayers();
+          console.log('[KSCY] getAllPlayers returned', existing.length, 'players');
+
           if (existing.some(p => normalizeName(p.fullName) === key)) {
             showMsg(`"${fullName}" is already registered. Names can't be repeated — try adding a middle initial if this is a different person.`, 'err');
             return;
@@ -744,12 +760,16 @@ function initApp() {
           };
 
           if (usingLocal) {
+            console.log('[KSCY] saving locally (in-memory)...');
             playerDoc.id = 'local_' + Date.now();
             localPlayers.push(playerDoc);
             renderRoster();
+            console.log('[KSCY] local save done.');
           } else {
+            console.log('[KSCY] saving to Firestore...');
             playerDoc.createdAt = fb.serverTimestamp();
             await fb.addDoc(fb.collection(fb.db, PLAYERS_COLLECTION), playerDoc);
+            console.log('[KSCY] Firestore save done.');
           }
 
           showMsg(`You're in, ${firstName}! Registration confirmed.`, 'ok');
@@ -758,12 +778,13 @@ function initApp() {
           [...q1Group.children].forEach(c => c.classList.remove('selected'));
           followupBatting.classList.remove('open');
           followupBowling.classList.remove('open');
+          console.log('[KSCY] submit flow fully complete.');
         })(),
         timeout(18000)
       ]);
 
     } catch (err) {
-      console.error(err);
+      console.error('[KSCY] submit error:', err);
       if (err && err.message === 'TIMEOUT') {
         showMsg('This is taking too long — check your internet connection and try again.', 'err');
       } else {
