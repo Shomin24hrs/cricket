@@ -40,13 +40,30 @@
   // gstatic.com, ad-blocker, or the config still being placeholder
   // values) the page still finishes setting up and falls back to a
   // local, in-memory mode instead of going fully inert.
+  //
+  // IMPORTANT: a slow real-world network doesn't always fail fast —
+  // unlike a hard block, a flaky connection can leave the import
+  // "pending" for a long time before finally erroring out. So the
+  // import itself is raced against a short timeout, rather than
+  // relying only on a downstream watchdog to clean up after it.
+  function withTimeout(promise, ms, label) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error(`${label}_TIMEOUT`)), ms))
+    ]);
+  }
+
   async function setupFirebase() {
     const configIsFilledIn = firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY";
 
     if (configIsFilledIn) {
       try {
-        const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
-        const firestoreMod = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+        const { initializeApp } = await withTimeout(
+          import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"), 5000, 'IMPORT_APP'
+        );
+        const firestoreMod = await withTimeout(
+          import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"), 5000, 'IMPORT_FIRESTORE'
+        );
 
         const app = initializeApp(firebaseConfig);
         db = firestoreMod.getFirestore(app);
@@ -78,7 +95,10 @@
 
   // Watchdog: no matter what happens above (a hang, a slow network, an
   // unexpected error outside the inner try/catch), guarantee fb-ready
-  // fires within 6 seconds so the rest of the page never stays dead.
+  // fires within 11 seconds so the rest of the page never stays dead.
+  // (Set comfortably above the 2x5s import timeouts above so the
+  // import-level timeout is always the one that fires first in the
+  // slow-network case, giving a precise, attributable error.)
   setTimeout(() => {
     if (!window.__fbReadyFired) {
       console.error("Firebase setup timed out — falling back to local mode.");
@@ -86,7 +106,7 @@
       window.__fbReadyFired = true;
       window.dispatchEvent(new Event("fb-ready"));
     }
-  }, 6000);
+  }, 11000);
 </script>
 
 <style>
@@ -739,7 +759,7 @@ function initApp() {
           followupBatting.classList.remove('open');
           followupBowling.classList.remove('open');
         })(),
-        timeout(12000)
+        timeout(18000)
       ]);
 
     } catch (err) {
@@ -995,7 +1015,7 @@ function initApp() {
           await saveTeams(teams);
           modalBackdrop.classList.remove('show');
         })(),
-        timeout(12000)
+        timeout(18000)
       ]);
     } catch (err) {
       console.error(err);
