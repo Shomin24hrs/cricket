@@ -35,6 +35,37 @@ Pick one:
 - **Firebase Hosting** — `firebase init hosting` + `firebase deploy` via the Firebase CLI (needs Node.js)
 - **GitHub Pages** — push the file to a repo, enable Pages in repo settings
 
+## Automated end-to-end test
+
+A simple Puppeteer script is included to exercise the registration flow and verify the page shows a successful confirmation. It does not connect to Firebase directly — it runs the real UI in a headless browser and asserts the success message appears after submitting.
+
+Quick steps:
+
+1. Install dev dependencies:
+
+```bash
+npm install
+```
+
+2. Start a local static server (in another terminal):
+
+```bash
+npm start
+# serves at http://localhost:8080
+```
+
+3. Run the E2E test:
+
+```bash
+npm run test:e2e
+```
+
+If the test passes, the script will exit with code 0 and print `E2E test passed`. If it fails, inspect the console output for errors and the browser console (the script prints network errors it observes).
+
+Notes:
+- Ensure your Firebase Firestore has been created and the rules published (see earlier sections) for writes to succeed when the app is actually connected.
+- The test uses a unique timestamped name to avoid duplicate-name collisions.
+
 ## Changing the password
 
 Open `index.html`, search for `const PASSWORD = "22"`, and change `"22"` to whatever you like. Note this is a UI-level gate, not a server-enforced one — fine for keeping casual club members out, but not bank-grade security (see the note at the bottom of `firestore.rules.txt` if you ever want to harden this further with Cloud Functions).

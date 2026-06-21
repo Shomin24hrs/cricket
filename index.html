@@ -696,8 +696,20 @@ function initApp() {
   async function getAllPlayers() {
     await fbReadyPromise;
     if (usingLocal) return localPlayers;
-    const snap = await fb.getDocs(fb.query(fb.collection(fb.db, PLAYERS_COLLECTION), fb.orderBy('createdAtLocal', 'asc')));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    try {
+      // Timeout after 4 seconds
+      const snap = await Promise.race([
+        fb.getDocs(fb.query(fb.collection(fb.db, PLAYERS_COLLECTION), fb.orderBy('createdAtLocal', 'asc'))),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('FIRESTORE_TIMEOUT')), 4000))
+      ]);
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) {
+      console.warn('[KSCY] Failed to fetch players from Firestore, falling back to local mode:', e);
+      usingLocal = true;
+      document.getElementById('fbWarning').classList.add('show');
+      showFbErrorBanner(e.message || 'Timeout');
+      return localPlayers;
+    }
   }
 
   document.getElementById('regForm').addEventListener('submit', async (e) => {
@@ -768,8 +780,22 @@ function initApp() {
           } else {
             console.log('[KSCY] saving to Firestore...');
             playerDoc.createdAt = fb.serverTimestamp();
-            await fb.addDoc(fb.collection(fb.db, PLAYERS_COLLECTION), playerDoc);
-            console.log('[KSCY] Firestore save done.');
+            try {
+              await Promise.race([
+                fb.addDoc(fb.collection(fb.db, PLAYERS_COLLECTION), playerDoc),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('FIRESTORE_WRITE_TIMEOUT')), 4000))
+              ]);
+              console.log('[KSCY] Firestore save done.');
+            } catch (writeErr) {
+              console.warn('[KSCY] Firestore write failed or timed out, saving locally instead:', writeErr);
+              usingLocal = true;
+              document.getElementById('fbWarning').classList.add('show');
+              showFbErrorBanner(writeErr.message || 'Write Timeout');
+              playerDoc.id = 'local_' + Date.now();
+              localPlayers.push(playerDoc);
+              renderRoster();
+              console.log('[KSCY] local fallback save done.');
+            }
           }
 
           showMsg(`You're in, ${firstName}! Registration confirmed.`, 'ok');
@@ -846,14 +872,23 @@ function initApp() {
       fb.onSnapshot(fb.query(fb.collection(fb.db, PLAYERS_COLLECTION), fb.orderBy('createdAtLocal', 'asc')), (snap) => {
         const players = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         renderRoster(players);
-      }, (err) => { console.error('Roster snapshot error', err); showFbErrorBanner(err.code || err.message || 'connection error'); });
+      }, (err) => {
+        console.error('Roster snapshot error', err);
+        showFbErrorBanner(err.code || err.message || 'connection error');
+        usingLocal = true;
+        renderRoster();
+      });
 
       // Live team listener too, in case teams were generated elsewhere
       fb.onSnapshot(fb.doc(fb.db, 'tournament', 'teams'), (snap) => {
         if (snap.exists()) {
           renderTeams(snap.data().teams);
         }
-      }, (err) => { console.error('Teams snapshot error', err); showFbErrorBanner(err.code || err.message || 'connection error'); });
+      }, (err) => {
+        console.error('Teams snapshot error', err);
+        showFbErrorBanner(err.code || err.message || 'connection error');
+        usingLocal = true;
+      });
 
       // Fetch once immediately too for instant paint of any already-generated teams
       fb.getDoc(fb.doc(fb.db, 'tournament', 'teams')).then(snap => {
@@ -909,8 +944,8 @@ function initApp() {
 
     function teamScore(key) {
       const t = teams[key];
-      const bat = t.reduce((s, p) => s + p.battingSkill, 0);
-      const bowl = t.reduce((s, p) => s + p.bowlingSkill, 0);
+      const bat = t.reduce((s, p) => s + (p.battingSkill || 0), 0);
+      const bowl = t.reduce((s, p) => s + (p.bowlingSkill || 0), 0);
       return { size: t.length, strength: bat + bowl };
     }
 
@@ -936,11 +971,22 @@ function initApp() {
       renderTeams(teams);
       return;
     }
-    await fb.setDoc(fb.doc(fb.db, 'tournament', 'teams'), {
-      teams,
-      generatedAt: fb.serverTimestamp(),
-      generatedAtLocal: Date.now()
-    });
+    try {
+      await Promise.race([
+        fb.setDoc(fb.doc(fb.db, 'tournament', 'teams'), {
+          teams,
+          generatedAt: fb.serverTimestamp(),
+          generatedAtLocal: Date.now()
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('FIRESTORE_WRITE_TIMEOUT')), 4000))
+      ]);
+    } catch (err) {
+      console.warn('[KSCY] Failed to save teams to Firestore, rendering locally:', err);
+      usingLocal = true;
+      document.getElementById('fbWarning').classList.add('show');
+      showFbErrorBanner(err.message || 'Write Timeout');
+      renderTeams(teams);
+    }
   }
 
   function teamSummary(team) {

@@ -1,0 +1,15 @@
+{
+  "name": "kscy-tournament-app",
+  "version": "1.0.0",
+  "description": "Kerala Sports Club Yukon Tournament Registration App",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server -p 8080",
+    "test:e2e": "node test_e2e.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "puppeteer": "^22.12.0"
+  }
+}
