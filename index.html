@@ -697,44 +697,58 @@ function initApp() {
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="spinner"></span> Submitting…';
 
+    // Hard safety net: race the whole submit flow against a timeout so the
+    // button can never spin forever, no matter what hangs underneath
+    // (a stalled network request, a promise that never settles, etc).
+    function timeout(ms) {
+      return new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), ms));
+    }
+
     try {
-      await fbReadyPromise;
-      const existing = await getAllPlayers();
-      if (existing.some(p => normalizeName(p.fullName) === key)) {
-        showMsg(`"${fullName}" is already registered. Names can't be repeated — try adding a middle initial if this is a different person.`, 'err');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Submit Registration';
-        return;
-      }
+      await Promise.race([
+        (async () => {
+          await fbReadyPromise;
+          const existing = await getAllPlayers();
+          if (existing.some(p => normalizeName(p.fullName) === key)) {
+            showMsg(`"${fullName}" is already registered. Names can't be repeated — try adding a middle initial if this is a different person.`, 'err');
+            return;
+          }
 
-      const cls = classify(q1, q2);
-      const playerDoc = {
-        firstName, lastName, fullName,
-        q1, q2: q1 === 'both' ? null : q2,
-        role: cls.role, roleLabel: cls.label,
-        battingSkill: cls.battingSkill, bowlingSkill: cls.bowlingSkill,
-        createdAtLocal: Date.now()
-      };
+          const cls = classify(q1, q2);
+          const playerDoc = {
+            firstName, lastName, fullName,
+            q1, q2: q1 === 'both' ? null : q2,
+            role: cls.role, roleLabel: cls.label,
+            battingSkill: cls.battingSkill, bowlingSkill: cls.bowlingSkill,
+            createdAtLocal: Date.now()
+          };
 
-      if (usingLocal) {
-        playerDoc.id = 'local_' + Date.now();
-        localPlayers.push(playerDoc);
-        renderRoster();
-      } else {
-        playerDoc.createdAt = fb.serverTimestamp();
-        await fb.addDoc(fb.collection(fb.db, PLAYERS_COLLECTION), playerDoc);
-      }
+          if (usingLocal) {
+            playerDoc.id = 'local_' + Date.now();
+            localPlayers.push(playerDoc);
+            renderRoster();
+          } else {
+            playerDoc.createdAt = fb.serverTimestamp();
+            await fb.addDoc(fb.collection(fb.db, PLAYERS_COLLECTION), playerDoc);
+          }
 
-      showMsg(`You're in, ${firstName}! Registration confirmed.`, 'ok');
-      document.getElementById('regForm').reset();
-      q1 = null; q2 = null;
-      [...q1Group.children].forEach(c => c.classList.remove('selected'));
-      followupBatting.classList.remove('open');
-      followupBowling.classList.remove('open');
+          showMsg(`You're in, ${firstName}! Registration confirmed.`, 'ok');
+          document.getElementById('regForm').reset();
+          q1 = null; q2 = null;
+          [...q1Group.children].forEach(c => c.classList.remove('selected'));
+          followupBatting.classList.remove('open');
+          followupBowling.classList.remove('open');
+        })(),
+        timeout(12000)
+      ]);
 
     } catch (err) {
       console.error(err);
-      showMsg('Something went wrong submitting your registration. Please try again.', 'err');
+      if (err && err.message === 'TIMEOUT') {
+        showMsg('This is taking too long — check your internet connection and try again.', 'err');
+      } else {
+        showMsg('Something went wrong submitting your registration. Please try again.', 'err');
+      }
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = 'Submit Registration';
@@ -964,19 +978,32 @@ function initApp() {
     confirmGenerate.disabled = true;
     confirmGenerate.innerHTML = '<span class="spinner"></span> Shuffling…';
 
+    function timeout(ms) {
+      return new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), ms));
+    }
+
     try {
-      const players = await getAllPlayers();
-      if (players.length < 3) {
-        modalMsg.textContent = 'Need at least 3 registered players to form teams.';
-        modalMsg.className = 'form-msg err show';
-        return;
-      }
-      const teams = generateTeams(players);
-      await saveTeams(teams);
-      modalBackdrop.classList.remove('show');
+      await Promise.race([
+        (async () => {
+          const players = await getAllPlayers();
+          if (players.length < 3) {
+            modalMsg.textContent = 'Need at least 3 registered players to form teams.';
+            modalMsg.className = 'form-msg err show';
+            return;
+          }
+          const teams = generateTeams(players);
+          await saveTeams(teams);
+          modalBackdrop.classList.remove('show');
+        })(),
+        timeout(12000)
+      ]);
     } catch (err) {
       console.error(err);
-      modalMsg.textContent = 'Something went wrong generating teams. Please try again.';
+      if (err && err.message === 'TIMEOUT') {
+        modalMsg.textContent = 'This is taking too long — check your internet connection and try again.';
+      } else {
+        modalMsg.textContent = 'Something went wrong generating teams. Please try again.';
+      }
       modalMsg.className = 'form-msg err show';
     } finally {
       confirmGenerate.disabled = false;
