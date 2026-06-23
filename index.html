@@ -406,6 +406,154 @@
     color:rgba(243,234,217,0.35); font-size:12.5px; font-family:var(--font-mono);
   }
 
+  /* ====== PUBLIC TOURNAMENT VIEW ====== */
+  #publicTournament{margin-top:36px;}
+
+  .pub-header{
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    background:linear-gradient(135deg, rgba(227,168,87,0.12), rgba(63,143,92,0.08));
+    border:1px solid rgba(227,168,87,0.25); border-radius:12px;
+    padding:20px 24px; margin-bottom:20px;
+  }
+  .pub-header-icon{font-size:32px; line-height:1;}
+  .pub-header-title{font-family:var(--font-display); font-weight:800; font-size:20px; text-transform:uppercase; letter-spacing:0.02em;}
+  .pub-header-sub{font-family:var(--font-mono); font-size:11px; color:var(--willow-bright); letter-spacing:0.1em; text-transform:uppercase; margin-top:4px;}
+  .pub-live-dot{margin-left:auto; display:flex; align-items:center; gap:7px; font-family:var(--font-mono); font-size:12px; color:#5fd38a;}
+
+  .pub-card{
+    background:linear-gradient(180deg, rgba(243,234,217,0.05), rgba(243,234,217,0.02));
+    border:1px solid var(--line); border-radius:12px;
+    padding:24px; margin-bottom:20px;
+  }
+  .pub-card-title{
+    font-family:var(--font-display); font-weight:800; font-size:18px;
+    text-transform:uppercase; letter-spacing:0.02em; margin-bottom:18px;
+  }
+
+  /* Public Points Table */
+  .pub-pts-wrap{overflow-x:auto;}
+  .pub-pts-table{width:100%; border-collapse:collapse; font-size:14px; min-width:520px;}
+  .pub-pts-table th{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--willow-bright);
+    padding:10px 14px; text-align:left; border-bottom:2px solid rgba(227,168,87,0.2);
+  }
+  .pub-pts-table td{padding:14px 14px; border-bottom:1px solid rgba(243,234,217,0.06); vertical-align:middle;}
+  .pub-pts-table tr:last-child td{border-bottom:none;}
+  .pub-team-cell{display:flex; align-items:center; gap:10px;}
+  .pub-team-dot{width:12px; height:12px; border-radius:50%; flex-shrink:0;}
+  .pub-team-name{font-family:var(--font-display); font-weight:800; font-size:16px; text-transform:uppercase;}
+  .pub-pts-big{font-family:var(--font-display); font-weight:800; font-size:18px;}
+  .pub-nrr{font-family:var(--font-mono); font-size:13px; font-weight:600;}
+  .pub-nrr.pos{color:#7fe3a4;} .pub-nrr.neg{color:#ff8f86;}
+  .pub-status-q{
+    display:inline-flex; align-items:center; gap:5px;
+    background:rgba(63,143,92,0.2); color:#7fe3a4;
+    border:1px solid rgba(63,143,92,0.4);
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.06em;
+    padding:4px 10px; border-radius:999px; text-transform:uppercase; white-space:nowrap;
+  }
+  .pub-status-e{
+    display:inline-flex; align-items:center; gap:5px;
+    background:rgba(200,57,47,0.15); color:#ff8f86;
+    border:1px solid rgba(200,57,47,0.35);
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.06em;
+    padding:4px 10px; border-radius:999px; text-transform:uppercase; white-space:nowrap;
+  }
+  .pub-status-p{
+    display:inline-flex; align-items:center; gap:5px;
+    background:rgba(243,234,217,0.06); color:var(--cream-dim);
+    border:1px solid var(--line);
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.06em;
+    padding:4px 10px; border-radius:999px; text-transform:uppercase; white-space:nowrap;
+  }
+  .pub-pts-table tr.pub-row-1st{background:rgba(63,143,92,0.08);}
+  .pub-pts-table tr.pub-row-2nd{background:rgba(47,111,176,0.06);}
+  .pub-pts-table tr.pub-row-last{background:rgba(200,57,47,0.05);}
+
+  /* Public scorecards */
+  .pub-scorecards{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px;}
+  .pub-scorecard{
+    border:1px solid var(--line); border-radius:10px;
+    background:rgba(8,40,33,0.45); overflow:hidden;
+  }
+  .pub-sc-head{
+    padding:10px 14px; font-family:var(--font-mono); font-size:10.5px;
+    letter-spacing:0.1em; text-transform:uppercase; color:var(--cream-dim);
+    border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .pub-sc-body{padding:14px 16px;}
+  .pub-sc-team{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 0;
+  }
+  .pub-sc-team:first-child{border-bottom:1px solid rgba(243,234,217,0.06);}
+  .pub-sc-tname{display:flex; align-items:center; gap:8px; font-family:var(--font-display); font-weight:700; font-size:15px; text-transform:uppercase;}
+  .pub-sc-score{text-align:right;}
+  .pub-sc-runs{font-family:var(--font-mono); font-size:16px; font-weight:700;}
+  .pub-sc-overs{font-family:var(--font-mono); font-size:11px; color:var(--cream-dim); margin-top:2px;}
+  .pub-sc-result{
+    margin-top:10px; padding-top:10px; border-top:1px solid rgba(243,234,217,0.06);
+    font-size:13px; text-align:center; font-family:var(--font-mono); color:var(--cream-dim);
+  }
+  .pub-sc-result strong{color:var(--willow-bright);}
+  .pub-sc-pending{
+    padding:20px; text-align:center; font-family:var(--font-mono);
+    font-size:12px; color:var(--cream-dim); letter-spacing:0.05em;
+  }
+
+  /* Public bracket */
+  .pub-bracket{display:flex; flex-direction:column; align-items:center; gap:10px;}
+  .pub-bracket-group{width:100%; display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px;}
+  .pub-bracket-label{font-family:var(--font-mono); font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--willow-bright); text-align:center; margin-bottom:8px; width:100%;}
+  .pub-bracket-arrow{font-size:22px; color:var(--willow-bright); opacity:0.5;}
+  .pub-bracket-final{max-width:340px; width:100%;}
+  .pub-bracket-match{
+    border:1px solid var(--line); border-radius:8px;
+    background:rgba(8,40,33,0.5); padding:12px 14px;
+  }
+  .pub-bracket-match.is-final{border-color:rgba(227,168,87,0.3); background:rgba(227,168,87,0.05);}
+  .pub-bm-label{font-family:var(--font-mono); font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--cream-dim); margin-bottom:8px;}
+  .pub-bm-teams{display:flex; flex-direction:column; gap:6px;}
+  .pub-bm-team{display:flex; align-items:center; justify-content:space-between; font-size:14px;}
+  .pub-bm-tname{display:flex; align-items:center; gap:7px; font-family:var(--font-display); font-weight:700; text-transform:uppercase;}
+  .pub-bm-score{font-family:var(--font-mono); font-size:13px; font-weight:600;}
+  .pub-bm-score.win{color:var(--willow-bright);}
+  .pub-bm-status{margin-top:8px; font-family:var(--font-mono); font-size:11px; color:var(--cream-dim); text-align:right;}
+  .pub-bm-status.done{color:#7fe3a4;}
+
+  /* Public qualification */
+  .pub-qual-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px;}
+  .pub-qual-card{border:1px solid var(--line); border-radius:10px; padding:18px; background:rgba(8,40,33,0.35);}
+  .pub-qual-card.qualified{border-color:rgba(63,143,92,0.45); background:rgba(63,143,92,0.07);}
+  .pub-qual-card.contention{border-color:rgba(227,168,87,0.35); background:rgba(227,168,87,0.05);}
+  .pub-qual-card.eliminated{border-color:rgba(200,57,47,0.35); background:rgba(200,57,47,0.05);}
+  .pub-qual-head{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+  .pub-qual-dot{width:14px; height:14px; border-radius:50%; flex-shrink:0;}
+  .pub-qual-tname{font-family:var(--font-display); font-weight:800; font-size:17px; text-transform:uppercase;}
+  .pub-qual-pts{font-family:var(--font-mono); font-size:12px; color:var(--cream-dim); margin-left:auto;}
+  .pub-qual-item{
+    font-size:13px; color:var(--cream-dim); line-height:1.7; margin-bottom:4px;
+    padding-left:14px; position:relative;
+  }
+  .pub-qual-item::before{content:'›'; position:absolute; left:0; color:var(--willow-bright);}
+  .pub-qual-item strong{color:var(--cream);}
+  .pub-qual-item.highlight strong{color:var(--willow-bright);}
+  .pub-qual-item.bad strong{color:#ff8f86;}
+  .pub-qual-nrr-row{
+    display:flex; gap:10px; margin-top:12px; padding-top:12px;
+    border-top:1px solid rgba(243,234,217,0.08);
+  }
+  .pub-qual-nrr-cell{flex:1; text-align:center;}
+  .pub-qual-nrr-val{font-family:var(--font-mono); font-size:15px; font-weight:700;}
+  .pub-qual-nrr-val.pos{color:#7fe3a4;} .pub-qual-nrr-val.neg{color:#ff8f86;}
+  .pub-qual-nrr-lbl{font-family:var(--font-mono); font-size:9.5px; text-transform:uppercase; letter-spacing:0.08em; color:var(--cream-dim); margin-top:3px;}
+  .pub-no-data{
+    text-align:center; color:var(--cream-dim); font-family:var(--font-mono);
+    font-size:13px; padding:28px; letter-spacing:0.04em; line-height:1.8;
+  }
+
   /* ====== MATCH CENTRE ====== */
   #matchCentreOverlay{
     display:none; position:fixed; inset:0; z-index:200;
@@ -695,6 +843,56 @@
     <div class="card-title" style="margin-bottom:6px;">🏆 The Three Sides</div>
     <div class="card-sub" style="margin-bottom:20px;">Drawn up automatically for balance across batting, bowling, and all-round strength.</div>
     <div class="teams-grid" id="teamsGrid"></div>
+  </section>
+
+  <!-- ============================================================
+       PUBLIC TOURNAMENT LIVE VIEW — visible to all visitors
+       Updates in real-time as the admin enters scores.
+       ============================================================ -->
+  <section id="publicTournament" style="display:none;">
+
+    <div class="pub-header">
+      <div class="pub-header-icon">🏏</div>
+      <div>
+        <div class="pub-header-title">Season 1 T1 — Live Tournament</div>
+        <div class="pub-header-sub">KSCY Cricket · Updates live as matches are played</div>
+      </div>
+      <div class="pub-live-dot"><span class="dot-live"></span><span>Live</span></div>
+    </div>
+
+    <!-- Points Table -->
+    <div class="pub-card">
+      <div class="pub-card-title">📊 Points Table</div>
+      <div class="pub-pts-wrap">
+        <table class="pub-pts-table">
+          <thead>
+            <tr>
+              <th>Team</th><th>P</th><th>W</th><th>L</th><th>Pts</th><th>NRR</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="pubPointsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Match Scorecards -->
+    <div class="pub-card">
+      <div class="pub-card-title">🏟 Match Scorecards</div>
+      <div class="pub-scorecards" id="pubScorecards"></div>
+    </div>
+
+    <!-- Bracket -->
+    <div class="pub-card">
+      <div class="pub-card-title">🗓 Tournament Bracket</div>
+      <div class="pub-bracket" id="pubBracket"></div>
+    </div>
+
+    <!-- Qualification Info -->
+    <div class="pub-card">
+      <div class="pub-card-title">🎯 What Each Team Needs</div>
+      <div id="pubQual"></div>
+    </div>
+
   </section>
 
 </main>
@@ -1133,6 +1331,34 @@ function initApp() {
   // local-mode fallback), attach listeners right away too.
   fbReadyPromise.then(attachLiveListenersIfReady);
 
+  // Load match data for the public view on page startup — all visitors
+  // see the live tournament info without needing to open the admin panel.
+  fbReadyPromise.then(() => {
+    if (usingLocal) { publicRenderAll(); return; }
+    // Attach a persistent Firestore listener for the public view so it
+    // updates in real-time even for visitors who never open the admin panel.
+    // This uses a separate onSnapshot from the admin one so they're independent.
+    try {
+      fb.onSnapshot(
+        fb.collection(fb.db, MC_MATCHES_COL),
+        (snap) => {
+          snap.docs.forEach(d => { mcMatchData[d.id] = d.data(); });
+          publicRenderAll();
+          // Also re-render the admin view if it's open
+          if (document.getElementById('matchCentreOverlay').classList.contains('mc-open')) {
+            mcRenderPointsTable();
+            mcRenderBracket();
+            mcRenderScoreInputs();
+            mcRenderQualification();
+          }
+        },
+        (err) => { console.warn('[PUBLIC] Match data listener error', err); }
+      );
+    } catch(e) {
+      console.warn('[PUBLIC] Could not attach match data listener', e);
+    }
+  });
+
   // ---------------- Team generation algorithm ----------------
   // Strategy: classify into 4 buckets ordered by "rarity/value":
   //   1) Pure all-rounders (both)
@@ -1551,6 +1777,7 @@ function initApp() {
     mcRenderBracket();
     mcRenderScoreInputs();
     mcRenderQualification();
+    publicRenderAll(); // always keep public view in sync
   }
 
   function mcRenderPointsTable() {
@@ -1864,6 +2091,435 @@ function initApp() {
 
     el.innerHTML = cards.join('') || '<div class="qual-all-done">Enter match scores to see qualification scenarios.</div>';
   } // end mcRenderQualification
+
+  // ================================================================
+  // PUBLIC TOURNAMENT VIEW — render to the main page for all visitors
+  // Uses the same mcMatchData and math functions as the admin view.
+  // ================================================================
+
+  const TEAM_COLORS_FULL = { A: '#c8392f', B: '#2f6fb0', C: '#3f8f5c' };
+
+  function publicRenderAll() {
+    const hasAnyData = MC_SCHEDULE.some(m => mcMatchData[m.id]);
+    const pubSection = document.getElementById('publicTournament');
+
+    // Show the public section as soon as any match data exists
+    if (hasAnyData) {
+      pubSection.style.display = 'block';
+    } else {
+      pubSection.style.display = 'none';
+      return;
+    }
+
+    pubRenderPointsTable();
+    pubRenderScorecards();
+    pubRenderBracket();
+    pubRenderQualification();
+  }
+
+  // ---- Public Points Table ----
+  function pubRenderPointsTable() {
+    const teams = ['A', 'B', 'C'];
+    const completedCount = MC_SCHEDULE.filter(m => m.stage === 'group' && mcMatchData[m.id]?.completed).length;
+    const rows = teams.map(t => ({
+      team: t,
+      ...calcTeamStats(t, mcMatchData),
+      nrr: calcTeamNRR(t, mcMatchData)
+    })).sort((a, b) => b.pts - a.pts || b.nrr - a.nrr);
+
+    const qualified = completedCount === 3 ? [rows[0].team, rows[1].team] : [];
+    const eliminated = completedCount === 3 ? [rows[2].team] : [];
+
+    const body = document.getElementById('pubPointsBody');
+    body.innerHTML = rows.map((r, i) => {
+      const color = TEAM_COLORS_FULL[r.team];
+      const nrrVal = r.p > 0 ? (r.nrr >= 0 ? '+' : '') + r.nrr.toFixed(3) : '—';
+      const nrrCls = r.nrr >= 0 ? 'pos' : 'neg';
+      const rowCls = i === 0 ? 'pub-row-1st' : i === rows.length - 1 && completedCount === 3 ? 'pub-row-last' : i === 1 ? 'pub-row-2nd' : '';
+
+      let statusHtml = `<span class="pub-status-p">Playing</span>`;
+      if (qualified.includes(r.team)) statusHtml = `<span class="pub-status-q">✓ Qualified</span>`;
+      else if (eliminated.includes(r.team)) statusHtml = `<span class="pub-status-e">✗ Eliminated</span>`;
+
+      return `<tr class="${rowCls}">
+        <td>
+          <div class="pub-team-cell">
+            <div class="pub-team-dot" style="background:${color}"></div>
+            <span class="pub-team-name">Team ${r.team}</span>
+          </div>
+        </td>
+        <td>${r.p}</td>
+        <td>${r.w}</td>
+        <td>${r.l}</td>
+        <td><span class="pub-pts-big">${r.pts}</span></td>
+        <td><span class="pub-nrr ${nrrCls}">${nrrVal}</span></td>
+        <td>${statusHtml}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ---- Public Scorecards ----
+  function pubRenderScorecards() {
+    const el = document.getElementById('pubScorecards');
+    const groupMatches = MC_SCHEDULE.filter(m => m.stage === 'group');
+
+    el.innerHTML = groupMatches.map(m => {
+      const d = mcMatchData[m.id];
+      const colorA = TEAM_COLORS_FULL[m.teamA];
+      const colorB = TEAM_COLORS_FULL[m.teamB];
+
+      if (!d) {
+        return `<div class="pub-scorecard">
+          <div class="pub-sc-head"><span>${m.label}</span><span>Upcoming</span></div>
+          <div class="pub-sc-pending">Match not yet started</div>
+        </div>`;
+      }
+
+      const taWin = d.teamA.runs > d.teamB.runs;
+      const tbWin = d.teamB.runs > d.teamA.runs;
+
+      // Win margin description
+      let resultText = '';
+      if (d.completed) {
+        if (taWin) {
+          const margin = d.teamA.runs - d.teamB.runs;
+          resultText = `<strong>Team ${m.teamA} won</strong> by ${margin} run${margin !== 1 ? 's' : ''}`;
+        } else if (tbWin) {
+          const wktsLeft = 10 - d.teamB.wkts;
+          resultText = `<strong>Team ${m.teamB} won</strong> by ${wktsLeft} wicket${wktsLeft !== 1 ? 's' : ''}`;
+        } else {
+          resultText = '<strong>Match Tied</strong>';
+        }
+      } else {
+        resultText = '● Match in progress';
+      }
+
+      // Run rates
+      const taRR = d.teamA.overs > 0 ? (d.teamA.runs / pubOversToDecimal(d.teamA.overs)).toFixed(2) : '—';
+      const tbRR = d.teamB.overs > 0 ? (d.teamB.runs / pubOversToDecimal(d.teamB.overs)).toFixed(2) : '—';
+
+      return `<div class="pub-scorecard">
+        <div class="pub-sc-head">
+          <span>${m.label}${d.overs ? ' · ' + d.overs + ' ov' : ''}</span>
+          <span>${d.completed ? '✓ Completed' : '● Live'}</span>
+        </div>
+        <div class="pub-sc-body">
+          <div class="pub-sc-team">
+            <div class="pub-sc-tname">
+              <div class="pub-team-dot" style="background:${colorA}"></div>
+              Team ${m.teamA}
+            </div>
+            <div class="pub-sc-score">
+              <div class="pub-sc-runs" style="${taWin ? 'color:var(--willow-bright)' : ''}">${d.teamA.runs}/${d.teamA.wkts}</div>
+              <div class="pub-sc-overs">${d.teamA.overs} ov · RR ${taRR}</div>
+            </div>
+          </div>
+          <div class="pub-sc-team">
+            <div class="pub-sc-tname">
+              <div class="pub-team-dot" style="background:${colorB}"></div>
+              Team ${m.teamB}
+            </div>
+            <div class="pub-sc-score">
+              <div class="pub-sc-runs" style="${tbWin ? 'color:var(--willow-bright)' : ''}">${d.teamB.runs}/${d.teamB.wkts}</div>
+              <div class="pub-sc-overs">${d.teamB.overs} ov · RR ${tbRR}</div>
+            </div>
+          </div>
+          <div class="pub-sc-result">${resultText}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    // Also render final scorecard if it has data
+    const fd = mcMatchData['final'];
+    const qualTeams = getQualifiedTeams();
+    if (fd || qualTeams.length === 2) {
+      const fta = fd?.matchTeamA || qualTeams[0] || '?';
+      const ftb = fd?.matchTeamB || qualTeams[1] || '?';
+      const fColorA = TEAM_COLORS_FULL[fta] || '#888';
+      const fColorB = TEAM_COLORS_FULL[ftb] || '#888';
+      let finalCard = '';
+      if (!fd) {
+        finalCard = `<div class="pub-scorecard" style="border-color:rgba(227,168,87,0.3)">
+          <div class="pub-sc-head" style="background:rgba(227,168,87,0.08)"><span>Final</span><span>Upcoming</span></div>
+          <div class="pub-sc-pending">Team ${fta} vs Team ${ftb} · Date TBC</div>
+        </div>`;
+      } else {
+        const taWin = fd.teamA.runs > fd.teamB.runs;
+        const tbWin = fd.teamB.runs > fd.teamA.runs;
+        const fRRA = fd.teamA.overs > 0 ? (fd.teamA.runs / pubOversToDecimal(fd.teamA.overs)).toFixed(2) : '—';
+        const fRRB = fd.teamB.overs > 0 ? (fd.teamB.runs / pubOversToDecimal(fd.teamB.overs)).toFixed(2) : '—';
+        let resText = fd.completed
+          ? (taWin ? `<strong>🏆 Team ${fta} won the tournament!</strong>` : tbWin ? `<strong>🏆 Team ${ftb} won the tournament!</strong>` : '<strong>Final Tied</strong>')
+          : '● Final in progress';
+        finalCard = `<div class="pub-scorecard" style="border-color:rgba(227,168,87,0.35)">
+          <div class="pub-sc-head" style="background:rgba(227,168,87,0.08)"><span>🏆 Final${fd.overs ? ' · ' + fd.overs + ' ov' : ''}</span><span>${fd.completed ? '✓ Completed' : '● Live'}</span></div>
+          <div class="pub-sc-body">
+            <div class="pub-sc-team">
+              <div class="pub-sc-tname"><div class="pub-team-dot" style="background:${fColorA}"></div>Team ${fta}</div>
+              <div class="pub-sc-score">
+                <div class="pub-sc-runs" style="${taWin ? 'color:var(--willow-bright)' : ''}">${fd.teamA.runs}/${fd.teamA.wkts}</div>
+                <div class="pub-sc-overs">${fd.teamA.overs} ov · RR ${fRRA}</div>
+              </div>
+            </div>
+            <div class="pub-sc-team">
+              <div class="pub-sc-tname"><div class="pub-team-dot" style="background:${fColorB}"></div>Team ${ftb}</div>
+              <div class="pub-sc-score">
+                <div class="pub-sc-runs" style="${tbWin ? 'color:var(--willow-bright)' : ''}">${fd.teamB.runs}/${fd.teamB.wkts}</div>
+                <div class="pub-sc-overs">${fd.teamB.overs} ov · RR ${fRRB}</div>
+              </div>
+            </div>
+            <div class="pub-sc-result">${resText}</div>
+          </div>
+        </div>`;
+      }
+      el.innerHTML += finalCard;
+    }
+  }
+
+  // helper used only in public view (same as oversToDecimal but named distinctly)
+  function pubOversToDecimal(ov) {
+    const s = String(ov);
+    const [whole, balls = '0'] = s.split('.');
+    return parseInt(whole) + Math.min(parseInt(balls), 5) / 6;
+  }
+
+  // ---- Public Bracket ----
+  function pubRenderBracket() {
+    const el = document.getElementById('pubBracket');
+    const groupMatches = MC_SCHEDULE.filter(m => m.stage === 'group');
+    const qualTeams = getQualifiedTeams();
+
+    function bmCard(m, isFinal) {
+      const d = mcMatchData[m.id];
+      const ta = m.teamA, tb = m.teamB;
+      const cA = TEAM_COLORS_FULL[ta] || '#888';
+      const cB = TEAM_COLORS_FULL[tb] || '#888';
+      const taScore = d ? `${d.teamA.runs}/${d.teamA.wkts}` : '—';
+      const tbScore = d ? `${d.teamB.runs}/${d.teamB.wkts}` : '—';
+      const taWin = d && d.teamA.runs > d.teamB.runs;
+      const tbWin = d && d.teamB.runs > d.teamA.runs;
+      const statusTxt = !d ? 'Upcoming' : d.completed ? '✓ Done' : '● Live';
+      const statusCls = !d ? '' : d.completed ? 'done' : '';
+
+      return `<div class="pub-bracket-match${isFinal ? ' is-final' : ''}">
+        <div class="pub-bm-label">${m.label || 'Final'}</div>
+        <div class="pub-bm-teams">
+          <div class="pub-bm-team">
+            <div class="pub-bm-tname"><div class="pub-team-dot" style="background:${cA}"></div>Team ${ta}</div>
+            <div class="pub-bm-score${taWin ? ' win' : ''}">${taScore}</div>
+          </div>
+          <div class="pub-bm-team">
+            <div class="pub-bm-tname"><div class="pub-team-dot" style="background:${cB}"></div>Team ${tb}</div>
+            <div class="pub-bm-score${tbWin ? ' win' : ''}">${tbScore}</div>
+          </div>
+        </div>
+        <div class="pub-bm-status ${statusCls}">${statusTxt}</div>
+      </div>`;
+    }
+
+    const finalTeamA = qualTeams[0] || '?';
+    const finalTeamB = qualTeams[1] || '?';
+    const finalMatch = { id: 'final', label: 'Final', teamA: finalTeamA, teamB: finalTeamB };
+
+    el.innerHTML = `
+      <div class="pub-bracket-group">
+        <div class="pub-bracket-label" style="grid-column:1/-1">Group Stage</div>
+        ${groupMatches.map(m => bmCard(m, false)).join('')}
+      </div>
+      <div class="pub-bracket-arrow">▼</div>
+      <div class="pub-bracket-final">
+        <div class="pub-bracket-label">Final</div>
+        ${bmCard(finalMatch, true)}
+      </div>`;
+  }
+
+  // ---- Public Qualification ----
+  function pubRenderQualification() {
+    const el = document.getElementById('pubQual');
+    const teams = ['A', 'B', 'C'];
+    const completedGroup = MC_SCHEDULE.filter(m => m.stage === 'group' && mcMatchData[m.id]?.completed).length;
+    const pendingGroup = MC_SCHEDULE.filter(m => m.stage === 'group' && !mcMatchData[m.id]?.completed);
+    const matchOvers = MC_SCHEDULE.find(m => m.stage === 'group' && mcMatchData[m.id])
+      ? (mcMatchData[MC_SCHEDULE.find(m => m.stage === 'group' && mcMatchData[m.id]).id]?.overs || 10)
+      : 10;
+
+    if (completedGroup === 3) {
+      const qualTeams = getQualifiedTeams();
+      const rows = teams.map(t => ({
+        team: t, ...calcTeamStats(t, mcMatchData),
+        nrr: calcTeamNRR(t, mcMatchData)
+      })).sort((a, b) => b.pts - a.pts || b.nrr - a.nrr);
+      const elimTeam = rows[2].team;
+
+      el.innerHTML = `<div class="pub-qual-grid">
+        ${qualTeams.map((t, i) => {
+          const color = TEAM_COLORS_FULL[t];
+          const stats = calcTeamStats(t, mcMatchData);
+          const nrr = calcTeamNRR(t, mcMatchData);
+          const nrrStr = (nrr >= 0 ? '+' : '') + nrr.toFixed(3);
+          return `<div class="pub-qual-card qualified">
+            <div class="pub-qual-head">
+              <div class="pub-qual-dot" style="background:${color}"></div>
+              <span class="pub-qual-tname">Team ${t}</span>
+              <span class="pub-qual-pts">${stats.pts} pts</span>
+            </div>
+            <div class="pub-qual-item highlight"><strong>✓ Qualified for the Final</strong></div>
+            <div class="pub-qual-item">${stats.w} win${stats.w !== 1 ? 's' : ''}, ${stats.l} loss${stats.l !== 1 ? 'es' : ''} from ${stats.p} matches</div>
+            <div class="pub-qual-nrr-row">
+              <div class="pub-qual-nrr-cell">
+                <div class="pub-qual-nrr-val ${nrr >= 0 ? 'pos' : 'neg'}">${nrrStr}</div>
+                <div class="pub-qual-nrr-lbl">Net Run Rate</div>
+              </div>
+              <div class="pub-qual-nrr-cell">
+                <div class="pub-qual-nrr-val" style="color:var(--cream)">#${i + 1}</div>
+                <div class="pub-qual-nrr-lbl">Group Rank</div>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+        <div class="pub-qual-card eliminated">
+          <div class="pub-qual-head">
+            <div class="pub-qual-dot" style="background:${TEAM_COLORS_FULL[elimTeam]}"></div>
+            <span class="pub-qual-tname">Team ${elimTeam}</span>
+            <span class="pub-qual-pts">${calcTeamStats(elimTeam, mcMatchData).pts} pts</span>
+          </div>
+          <div class="pub-qual-item bad"><strong>✗ Eliminated from tournament</strong></div>
+          <div class="pub-qual-item">${calcTeamStats(elimTeam, mcMatchData).w} win${calcTeamStats(elimTeam, mcMatchData).w !== 1 ? 's' : ''}, ${calcTeamStats(elimTeam, mcMatchData).l} loss${calcTeamStats(elimTeam, mcMatchData).l !== 1 ? 'es' : ''} from ${calcTeamStats(elimTeam, mcMatchData).p} matches</div>
+          <div class="pub-qual-nrr-row">
+            <div class="pub-qual-nrr-cell">
+              <div class="pub-qual-nrr-val ${calcTeamNRR(elimTeam, mcMatchData) >= 0 ? 'pos' : 'neg'}">${(calcTeamNRR(elimTeam, mcMatchData) >= 0 ? '+' : '') + calcTeamNRR(elimTeam, mcMatchData).toFixed(3)}</div>
+              <div class="pub-qual-nrr-lbl">Net Run Rate</div>
+            </div>
+            <div class="pub-qual-nrr-cell">
+              <div class="pub-qual-nrr-val" style="color:var(--cream)">#3</div>
+              <div class="pub-qual-nrr-lbl">Group Rank</div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+      return;
+    }
+
+    // Group stage in progress — show live scenarios
+    const statsNow = {};
+    teams.forEach(t => {
+      statsNow[t] = {
+        ...calcTeamStats(t, mcMatchData),
+        nrr: calcTeamNRR(t, mcMatchData)
+      };
+    });
+
+    function maxPts(t) {
+      let extra = 0;
+      pendingGroup.forEach(m => { if (m.teamA === t || m.teamB === t) extra += 2; });
+      return statsNow[t].pts + extra;
+    }
+
+    el.innerHTML = `<div class="pub-qual-grid">${teams.map(t => {
+      const color = TEAM_COLORS_FULL[t];
+      const s = statsNow[t];
+      const nrrStr = s.p > 0 ? (s.nrr >= 0 ? '+' : '') + s.nrr.toFixed(3) : '—';
+      const rivals = teams.filter(r => r !== t);
+      const myPending = pendingGroup.filter(m => m.teamA === t || m.teamB === t);
+      const couldQual = maxPts(t) >= Math.min(...rivals.map(r => statsNow[r].pts));
+      const alreadyQual = s.pts >= 4;
+
+      let cardCls = 'contention';
+      let items = [];
+
+      if (alreadyQual) {
+        cardCls = 'qualified';
+        items.push(`<div class="pub-qual-item highlight"><strong>Qualified — 4 points secured</strong></div>`);
+      } else if (!couldQual) {
+        cardCls = 'eliminated';
+        items.push(`<div class="pub-qual-item bad"><strong>Cannot qualify — mathematically eliminated</strong></div>`);
+      } else if (myPending.length === 0) {
+        // Done playing, waiting
+        items.push(`<div class="pub-qual-item"><strong>Finished group games</strong> — waiting on other results</div>`);
+        const canBeOvertaken = rivals.some(r => statsNow[r].pts + (pendingGroup.filter(m => m.teamA === r || m.teamB === r).length * 2) >= s.pts);
+        if (!canBeOvertaken) {
+          cardCls = 'qualified';
+          items.push(`<div class="pub-qual-item highlight"><strong>Cannot be overtaken — qualified</strong></div>`);
+        }
+      } else {
+        myPending.forEach(m => {
+          const opp = m.teamA === t ? m.teamB : m.teamA;
+          const oppS = statsNow[opp];
+          const d = mcMatchData[m.id];
+
+          if (s.pts + 2 > oppS.pts) {
+            items.push(`<div class="pub-qual-item highlight">vs Team ${opp}: <strong>A win guarantees qualification</strong></div>`);
+          } else if (s.pts + 2 === oppS.pts) {
+            const nrrGap = (s.nrr - oppS.nrr).toFixed(3);
+            items.push(`<div class="pub-qual-item">vs Team ${opp}: <strong>Must win</strong>, then NRR decides (gap: ${nrrGap > 0 ? '+' : ''}${nrrGap})</div>`);
+
+            // Live chase target
+            if (d && !d.completed) {
+              const batFirst = d.matchTeamA === t;
+              const mo = d.overs || matchOvers;
+              if (!batFirst && d.teamA.runs > 0) {
+                const target = d.teamA.runs + 1;
+                const oversFaced = pubOversToDecimal(d.teamB.overs);
+                const oversLeft = mo - oversFaced;
+                if (oversLeft > 0) {
+                  const runsNeeded = target - d.teamB.runs;
+                  const rrNeeded = runsNeeded > 0 ? (runsNeeded / oversLeft).toFixed(2) : '—';
+                  items.push(`<div class="pub-qual-item highlight">Need <strong>${runsNeeded} more runs</strong> off ${oversLeft.toFixed(1)} overs (RRR: ${rrNeeded})</div>`);
+                }
+              } else if (batFirst && d.teamA.runs > 0) {
+                // Bowling — check if defending comfortably
+                const defended = d.teamA.runs;
+                items.push(`<div class="pub-qual-item">Defending <strong>${defended}</strong> — need to restrict Team ${opp}</div>`);
+              }
+            }
+          } else {
+            items.push(`<div class="pub-qual-item">vs Team ${opp}: <strong>Must win</strong>, and need other results to help</div>`);
+          }
+        });
+      }
+
+      // Current match — show live RRR if chasing
+      const liveM = myPending.find(m => mcMatchData[m.id] && !mcMatchData[m.id].completed);
+      if (liveM) {
+        const ld = mcMatchData[liveM.id];
+        const isChasing = ld.matchTeamB === t;
+        if (isChasing && ld.teamA.runs > 0) {
+          const target = ld.teamA.runs + 1;
+          const scored = ld.teamB.runs;
+          const oversFaced = pubOversToDecimal(ld.teamB.overs);
+          const oversLeft = (ld.overs || matchOvers) - oversFaced;
+          const runsLeft = target - scored;
+          if (oversLeft > 0 && runsLeft > 0) {
+            const rrr = (runsLeft / oversLeft).toFixed(2);
+            items.push(`<div class="pub-qual-item highlight">🎯 Live: need <strong>${runsLeft} off ${oversLeft.toFixed(1)} ov</strong> (RRR <strong>${rrr}</strong>)</div>`);
+          }
+        }
+      }
+
+      return `<div class="pub-qual-card ${cardCls}">
+        <div class="pub-qual-head">
+          <div class="pub-qual-dot" style="background:${color}"></div>
+          <span class="pub-qual-tname">Team ${t}</span>
+          <span class="pub-qual-pts">${s.pts} pts</span>
+        </div>
+        ${items.join('')}
+        <div class="pub-qual-nrr-row">
+          <div class="pub-qual-nrr-cell">
+            <div class="pub-qual-nrr-val ${s.nrr >= 0 ? 'pos' : 'neg'}">${nrrStr}</div>
+            <div class="pub-qual-nrr-lbl">NRR</div>
+          </div>
+          <div class="pub-qual-nrr-cell">
+            <div class="pub-qual-nrr-val" style="color:var(--cream)">${myPending.length}</div>
+            <div class="pub-qual-nrr-lbl">Games Left</div>
+          </div>
+          <div class="pub-qual-nrr-cell">
+            <div class="pub-qual-nrr-val" style="color:var(--cream)">${maxPts(t)}</div>
+            <div class="pub-qual-nrr-lbl">Max Pts</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  }
 
 } // end initApp
 
