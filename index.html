@@ -406,6 +406,170 @@
     color:rgba(243,234,217,0.35); font-size:12.5px; font-family:var(--font-mono);
   }
 
+  /* ====== MATCH CENTRE ====== */
+  #matchCentreOverlay{
+    display:none; position:fixed; inset:0; z-index:200;
+    background:var(--pitch-deep);
+    overflow-y:auto;
+  }
+  #matchCentreOverlay.mc-open{display:block;}
+
+  #mcHeader{
+    position:sticky; top:0; z-index:10;
+    background:linear-gradient(180deg, var(--pitch-deep), rgba(8,40,33,0.97));
+    border-bottom:1px solid var(--line);
+    padding:16px 24px;
+    display:flex; align-items:center; justify-content:space-between;
+    backdrop-filter:blur(6px);
+  }
+  #mcHeaderLeft{display:flex; align-items:center; gap:12px;}
+  #mcHeaderIcon{font-size:26px;}
+  #mcHeaderTitle{font-family:var(--font-display); font-weight:800; font-size:20px; text-transform:uppercase; letter-spacing:0.02em;}
+  #mcHeaderSub{font-family:var(--font-mono); font-size:11px; color:var(--willow-bright); letter-spacing:0.12em; text-transform:uppercase; margin-top:3px;}
+
+  #mcBody{max-width:1100px; margin:0 auto; padding:24px;}
+
+  .mc-section{
+    background:linear-gradient(180deg, rgba(243,234,217,0.05), rgba(243,234,217,0.02));
+    border:1px solid var(--line); border-radius:12px;
+    padding:24px; margin-bottom:24px;
+  }
+  .mc-section-title{
+    font-family:var(--font-display); font-weight:800; font-size:18px;
+    text-transform:uppercase; letter-spacing:0.02em;
+    margin-bottom:18px; color:var(--cream);
+  }
+
+  /* Points Table */
+  #pointsTableWrap{overflow-x:auto;}
+  #pointsTable{width:100%; border-collapse:collapse; font-size:14px;}
+  #pointsTable th{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--willow-bright);
+    padding:10px 12px; text-align:left; border-bottom:1px solid var(--line);
+  }
+  #pointsTable td{
+    padding:12px 12px; border-bottom:1px solid rgba(243,234,217,0.06);
+    font-size:14px;
+  }
+  #pointsTable tr:last-child td{border-bottom:none;}
+  #pointsTable .team-name{font-weight:700; font-size:15px;}
+  #pointsTable .nrr-pos{color:#7fe3a4;}
+  #pointsTable .nrr-neg{color:#ff8f86;}
+  #pointsTable .qualified-row{background:rgba(63,143,92,0.12);}
+  #pointsTable .eliminated-row{background:rgba(200,57,47,0.07);}
+  .qual-badge{
+    font-family:var(--font-mono); font-size:9.5px; letter-spacing:0.06em;
+    padding:3px 7px; border-radius:999px; margin-left:8px;
+    background:rgba(63,143,92,0.25); color:#7fe3a4; border:1px solid rgba(63,143,92,0.4);
+    text-transform:uppercase; vertical-align:middle;
+  }
+
+  /* Bracket */
+  #bracketWrap{display:flex; flex-direction:column; align-items:center; gap:12px;}
+  #groupStage{width:100%;}
+  #matchCards{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px;}
+  .stage-label{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.2em;
+    text-transform:uppercase; color:var(--willow-bright);
+    text-align:center; margin-bottom:12px;
+  }
+  #bracketArrow{font-size:24px; color:var(--willow-bright); opacity:0.6;}
+  #finalStage{width:100%; max-width:380px;}
+
+  .match-card{
+    border:1px solid var(--line); border-radius:10px;
+    background:rgba(8,40,33,0.45); overflow:hidden;
+  }
+  .match-card-head{
+    padding:10px 14px; font-family:var(--font-mono); font-size:10.5px;
+    letter-spacing:0.1em; text-transform:uppercase; color:var(--cream-dim);
+    border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .match-card-head .status-badge{
+    padding:3px 8px; border-radius:999px; font-size:9.5px;
+    border:1px solid var(--line);
+  }
+  .status-badge.pending{color:var(--cream-dim);}
+  .status-badge.live{background:rgba(95,211,138,0.15); color:#7fe3a4; border-color:rgba(95,211,138,0.4); animation:pulse 1.8s infinite;}
+  .status-badge.done{background:rgba(47,111,176,0.2); color:#8ec4f5; border-color:rgba(47,111,176,0.4);}
+  .match-card-body{padding:14px;}
+  .match-team-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 0;
+  }
+  .match-team-row:first-child{border-bottom:1px solid rgba(243,234,217,0.06);}
+  .match-team-name{font-weight:700; font-size:15px; font-family:var(--font-display); text-transform:uppercase;}
+  .match-score{font-family:var(--font-mono); font-size:15px; font-weight:700;}
+  .match-score.winner{color:var(--willow-bright);}
+  .match-overs{font-family:var(--font-mono); font-size:11px; color:var(--cream-dim);}
+  .match-result{
+    margin-top:10px; padding-top:10px; border-top:1px solid rgba(243,234,217,0.06);
+    font-size:12.5px; color:var(--cream-dim); text-align:center; font-family:var(--font-mono);
+  }
+  .match-result .winner-text{color:var(--willow-bright); font-weight:600;}
+  .match-card.final-card .match-card-head{background:linear-gradient(90deg,rgba(227,168,87,0.15),rgba(227,168,87,0.05));}
+
+  /* Score Input */
+  .score-input-block{
+    border:1px solid var(--line); border-radius:10px;
+    margin-bottom:16px; overflow:hidden;
+  }
+  .score-input-head{
+    padding:12px 16px; background:rgba(8,40,33,0.5);
+    font-family:var(--font-display); font-weight:700; text-transform:uppercase;
+    font-size:15px; letter-spacing:0.02em;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .score-input-body{padding:16px;}
+  .score-team-label{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--willow-bright); margin-bottom:10px;
+    margin-top:14px;
+  }
+  .score-team-label:first-child{margin-top:0;}
+  .score-row{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:4px;}
+  .score-field label{
+    display:block; font-family:var(--font-mono); font-size:10px;
+    letter-spacing:0.08em; text-transform:uppercase; color:var(--cream-dim); margin-bottom:5px;
+  }
+  .score-field input{
+    width:100%; background:rgba(8,40,33,0.6); border:1px solid var(--line);
+    border-radius:6px; padding:9px 10px; color:var(--cream); font-size:14px;
+    font-family:var(--font-mono);
+  }
+  .score-field input:focus{outline:none; border-color:var(--willow-bright);}
+  .score-field input[disabled]{opacity:0.4; cursor:not-allowed;}
+  .save-match-btn{
+    margin-top:14px; width:100%;
+  }
+
+  /* Qualification cards */
+  .qual-card{
+    border:1px solid var(--line); border-radius:8px;
+    padding:14px 16px; margin-bottom:10px;
+    background:rgba(8,40,33,0.35);
+  }
+  .qual-card h4{
+    font-family:var(--font-display); font-weight:700; text-transform:uppercase;
+    font-size:14px; letter-spacing:0.02em; margin-bottom:8px;
+  }
+  .qual-card p{font-size:13px; color:var(--cream-dim); line-height:1.6; margin-bottom:4px;}
+  .qual-card p strong{color:var(--cream);}
+  .qual-card.qual-positive{border-color:rgba(63,143,92,0.4);}
+  .qual-card.qual-positive h4{color:#7fe3a4;}
+  .qual-card.qual-warning{border-color:rgba(227,168,87,0.4);}
+  .qual-card.qual-warning h4{color:var(--willow-bright);}
+  .qual-card.qual-negative{border-color:rgba(200,57,47,0.4);}
+  .qual-card.qual-negative h4{color:#ff8f86;}
+  .qual-all-done{
+    text-align:center; color:var(--cream-dim); font-size:14px; padding:20px;
+    font-family:var(--font-mono); letter-spacing:0.05em;
+  }
+
+</style>
+
   .fb-warning{
     background:rgba(200,57,47,0.15); border:1px solid rgba(200,57,47,0.4);
     color:#ffb3ac; padding:14px 18px; border-radius:8px; font-size:13.5px;
@@ -445,6 +609,7 @@
     <div class="nav-actions">
       <div class="count-pill"><span class="dot-live"></span> <b id="liveCount">0</b>&nbsp;registered</div>
       <button class="btn btn-ghost" id="openRosterModal">View Roster</button>
+      <button class="btn btn-ghost" id="openMatchCentreBtn">🏆 Season 1 T1</button>
       <button class="btn btn-primary" id="openGenerateModal">Generate Teams</button>
     </div>
   </div>
@@ -538,7 +703,84 @@
 
 <footer>KSCY &nbsp;·&nbsp; Built for fair play, every over.</footer>
 
-<!-- Password Modal (Generate Teams) -->
+<!-- Match Centre Password Modal -->
+<div class="modal-backdrop" id="mcPasswordBackdrop">
+  <div class="modal">
+    <h3>🏆 Season 1 T1</h3>
+    <p>Enter the admin password to access the Match Centre — live scores, points table and qualification tracker.</p>
+    <input type="password" id="mcPassword" placeholder="Password">
+    <div class="form-msg err" id="mcPasswordMsg" style="margin-top:0;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="mcPasswordCancel">Cancel</button>
+      <button class="btn btn-primary" id="mcPasswordConfirm">Enter Match Centre</button>
+    </div>
+  </div>
+</div>
+
+<!-- Match Centre Full-Screen Overlay -->
+<div id="matchCentreOverlay">
+  <div id="mcHeader">
+    <div id="mcHeaderLeft">
+      <span id="mcHeaderIcon">🏆</span>
+      <div>
+        <div id="mcHeaderTitle">Season 1 T1 — Match Centre</div>
+        <div id="mcHeaderSub">KSCY Cricket Tournament</div>
+      </div>
+    </div>
+    <button class="btn btn-ghost" id="closeMcBtn">✕ Close</button>
+  </div>
+
+  <div id="mcBody">
+
+    <!-- Points Table -->
+    <div class="mc-section">
+      <div class="mc-section-title">📊 Points Table</div>
+      <div id="pointsTableWrap">
+        <table id="pointsTable">
+          <thead>
+            <tr>
+              <th>Team</th><th>P</th><th>W</th><th>L</th><th>Pts</th><th>NRR</th>
+            </tr>
+          </thead>
+          <tbody id="pointsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Qualification Tracker -->
+    <div class="mc-section" id="qualSection">
+      <div class="mc-section-title">🎯 Qualification Tracker</div>
+      <div id="qualContent"></div>
+    </div>
+
+    <!-- Tournament Bracket -->
+    <div class="mc-section">
+      <div class="mc-section-title">🗓 Tournament Bracket</div>
+      <div id="bracketWrap">
+        <!-- Group Stage -->
+        <div id="groupStage">
+          <div class="stage-label">GROUP STAGE</div>
+          <div id="matchCards"></div>
+        </div>
+        <!-- Arrow -->
+        <div id="bracketArrow">▼</div>
+        <!-- Final -->
+        <div id="finalStage">
+          <div class="stage-label">FINAL</div>
+          <div id="finalCard"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Score Input -->
+    <div class="mc-section">
+      <div class="mc-section-title">✏️ Enter Match Scores</div>
+      <div id="scoreInputs"></div>
+    </div>
+
+  </div>
+</div>
+
 <div class="modal-backdrop" id="modalBackdrop">
   <div class="modal">
     <h3>Generate Teams</h3>
@@ -1139,7 +1381,493 @@ function initApp() {
     if (e.key === 'Enter') confirmRoster.click();
   });
 
-}
+  // ================================================================
+  // MATCH CENTRE — Season 1 T1
+  // Completely separate from registration/team data.
+  // Firestore collection: s1t1_matches (one doc per match ID)
+  // ================================================================
+
+  const MC_MATCHES_COL = 's1t1_matches';
+  const MC_PASSWORD = '22';
+
+  // The 3 group matches + 1 final
+  const MC_SCHEDULE = [
+    { id: 'AxB', label: 'Match 1', teamA: 'A', teamB: 'B', stage: 'group' },
+    { id: 'AxC', label: 'Match 2', teamA: 'A', teamB: 'C', stage: 'group' },
+    { id: 'BxC', label: 'Match 3', teamB: 'B', teamA: 'C', stage: 'group' },
+    { id: 'final', label: 'Final', teamA: '?', teamB: '?', stage: 'final' }
+  ];
+  const TEAM_COLORS = { A: '#c8392f', B: '#2f6fb0', C: '#3f8f5c' };
+
+  // Local cache of match data keyed by match ID
+  let mcMatchData = {}; // { AxB: { overs: 10, teamA: {runs,wkts,overs}, teamB: {...} }, ... }
+
+  // ---- Password Gate ----
+  const mcPasswordBackdrop = document.getElementById('mcPasswordBackdrop');
+  const mcPasswordConfirm = document.getElementById('mcPasswordConfirm');
+  const mcPasswordMsg = document.getElementById('mcPasswordMsg');
+  const matchCentreOverlay = document.getElementById('matchCentreOverlay');
+
+  document.getElementById('openMatchCentreBtn').addEventListener('click', () => {
+    document.getElementById('mcPassword').value = '';
+    mcPasswordMsg.className = 'form-msg err';
+    mcPasswordBackdrop.classList.add('show');
+    setTimeout(() => document.getElementById('mcPassword').focus(), 50);
+  });
+  document.getElementById('mcPasswordCancel').addEventListener('click', () => {
+    mcPasswordBackdrop.classList.remove('show');
+  });
+  mcPasswordBackdrop.addEventListener('click', (e) => {
+    if (e.target === mcPasswordBackdrop) mcPasswordBackdrop.classList.remove('show');
+  });
+  document.getElementById('mcPassword').addEventListener('keydown', e => {
+    if (e.key === 'Enter') mcPasswordConfirm.click();
+  });
+  mcPasswordConfirm.addEventListener('click', () => {
+    if (document.getElementById('mcPassword').value !== MC_PASSWORD) {
+      mcPasswordMsg.textContent = 'Incorrect password.';
+      mcPasswordMsg.className = 'form-msg err show';
+      return;
+    }
+    mcPasswordBackdrop.classList.remove('show');
+    openMatchCentre();
+  });
+  document.getElementById('closeMcBtn').addEventListener('click', () => {
+    matchCentreOverlay.classList.remove('mc-open');
+  });
+
+  function openMatchCentre() {
+    matchCentreOverlay.classList.add('mc-open');
+    mcRenderAll();
+    mcAttachFirestoreListener();
+  }
+
+  // ---- Firestore listener for match data ----
+  let mcUnsubscribe = null;
+  function mcAttachFirestoreListener() {
+    if (usingLocal) { mcRenderAll(); return; }
+    if (mcUnsubscribe) return; // already listening
+    try {
+      mcUnsubscribe = fb.onSnapshot(
+        fb.collection(fb.db, MC_MATCHES_COL),
+        (snap) => {
+          snap.docs.forEach(d => { mcMatchData[d.id] = d.data(); });
+          mcRenderAll();
+        },
+        (err) => { console.warn('[MC] Firestore listener error', err); }
+      );
+    } catch(e) { console.warn('[MC] Could not attach listener', e); }
+  }
+
+  // ---- Save a single match result ----
+  async function mcSaveMatch(matchId, data) {
+    mcMatchData[matchId] = data;
+    if (!usingLocal) {
+      try {
+        await fb.setDoc(fb.doc(fb.db, MC_MATCHES_COL, matchId), data);
+      } catch(e) { console.warn('[MC] Save failed', e); }
+    }
+    mcRenderAll();
+  }
+
+  // ================================================================
+  // CRICKET MATH
+  // ================================================================
+
+  // Convert "overs.balls" notation to decimal overs
+  // e.g. 9.3 → 9.5, 10 → 10.0
+  function oversToDecimal(ov) {
+    const s = String(ov);
+    const [whole, balls = '0'] = s.split('.');
+    return parseInt(whole) + Math.min(parseInt(balls), 5) / 6;
+  }
+
+  // NRR for one team across all completed matches:
+  //   (total runs scored / total overs faced) - (total runs conceded / total overs bowled)
+  // Per-match: if all out before full overs, use full match overs as denominator
+  function calcTeamNRR(teamKey, matchDataMap, maxOvers) {
+    let runsFor = 0, oversFaced = 0;
+    let runsAgainst = 0, oversBowled = 0;
+
+    MC_SCHEDULE.filter(m => m.stage === 'group').forEach(m => {
+      const d = matchDataMap[m.id];
+      if (!d || !d.completed) return;
+      const isA = m.teamA === teamKey;
+      const isB = m.teamB === teamKey;
+      if (!isA && !isB) return;
+
+      const myInnings = isA ? d.teamA : d.teamB;
+      const oppInnings = isA ? d.teamB : d.teamA;
+      const mo = maxOvers || d.overs || 10;
+
+      // If team was all out, denominator is full match overs; else actual overs faced
+      const myOversActual = oversToDecimal(myInnings.overs);
+      const myOversDenom = (myInnings.wkts >= 10) ? mo : myOversActual;
+
+      const oppOversActual = oversToDecimal(oppInnings.overs);
+      const oppOversDenom = (oppInnings.wkts >= 10) ? mo : oppOversActual;
+
+      runsFor += myInnings.runs;
+      oversFaced += myOversDenom;
+      runsAgainst += oppInnings.runs;
+      oversBowled += oppOversDenom;
+    });
+
+    if (oversFaced === 0 || oversBowled === 0) return 0;
+    return (runsFor / oversFaced) - (runsAgainst / oversBowled);
+  }
+
+  // Points table for a given team
+  function calcTeamStats(teamKey, matchDataMap) {
+    let p = 0, w = 0, l = 0, pts = 0;
+    MC_SCHEDULE.filter(m => m.stage === 'group').forEach(m => {
+      const d = matchDataMap[m.id];
+      if (!d || !d.completed) return;
+      const isA = m.teamA === teamKey;
+      const isB = m.teamB === teamKey;
+      if (!isA && !isB) return;
+      p++;
+      const myRuns = isA ? d.teamA.runs : d.teamB.runs;
+      const oppRuns = isA ? d.teamB.runs : d.teamA.runs;
+      if (myRuns > oppRuns) { w++; pts += 2; }
+      else if (myRuns === oppRuns) { pts += 1; } // tie
+      else { l++; }
+    });
+    return { p, w, l, pts };
+  }
+
+  // Who won a match
+  function matchWinner(d) {
+    if (!d || !d.completed) return null;
+    if (d.teamA.runs > d.teamB.runs) return d.matchTeamA;
+    if (d.teamB.runs > d.teamA.runs) return d.matchTeamB;
+    return 'Tie';
+  }
+
+  // ================================================================
+  // RENDER ENGINE
+  // ================================================================
+
+  function mcRenderAll() {
+    mcRenderPointsTable();
+    mcRenderBracket();
+    mcRenderScoreInputs();
+    mcRenderQualification();
+  }
+
+  function mcRenderPointsTable() {
+    const teams = ['A', 'B', 'C'];
+    const rows = teams.map(t => {
+      const stats = calcTeamStats(t, mcMatchData);
+      const nrr = calcTeamNRR(t, mcMatchData);
+      return { team: t, ...stats, nrr };
+    });
+    // Sort: pts desc, then NRR desc
+    rows.sort((a, b) => b.pts - a.pts || b.nrr - a.nrr);
+
+    // Determine qualification (top 2)
+    const totalGroupMatches = 3;
+    const completedMatches = MC_SCHEDULE.filter(m => m.stage === 'group' && mcMatchData[m.id]?.completed).length;
+    const qualified = completedMatches === totalGroupMatches ? [rows[0].team, rows[1].team] : [];
+    const eliminated = completedMatches === totalGroupMatches ? [rows[2].team] : [];
+
+    const body = document.getElementById('pointsTableBody');
+    body.innerHTML = rows.map((r, i) => {
+      const nrrStr = (r.nrr >= 0 ? '+' : '') + r.nrr.toFixed(3);
+      const nrrCls = r.nrr >= 0 ? 'nrr-pos' : 'nrr-neg';
+      const rowCls = qualified.includes(r.team) ? 'qualified-row' : eliminated.includes(r.team) ? 'eliminated-row' : '';
+      const badge = qualified.includes(r.team) ? '<span class="qual-badge">✓ Final</span>' : '';
+      return `<tr class="${rowCls}">
+        <td><span class="team-name">Team ${r.team}${badge}</span></td>
+        <td>${r.p}</td><td>${r.w}</td><td>${r.l}</td>
+        <td><strong>${r.pts}</strong></td>
+        <td class="${nrrCls}">${r.p > 0 ? nrrStr : '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function mcRenderBracket() {
+    const matchCardsEl = document.getElementById('matchCards');
+    const groupMatches = MC_SCHEDULE.filter(m => m.stage === 'group');
+    matchCardsEl.innerHTML = groupMatches.map(m => buildMatchCard(m)).join('');
+
+    // Final card
+    const finalDef = MC_SCHEDULE.find(m => m.id === 'final');
+    const qualTeams = getQualifiedTeams();
+    const fData = mcMatchData['final'];
+    const finalCopy = { ...finalDef,
+      teamA: qualTeams[0] || '?',
+      teamB: qualTeams[1] || '?'
+    };
+    document.getElementById('finalCard').innerHTML = buildMatchCard(finalCopy, true);
+  }
+
+  function getQualifiedTeams() {
+    const teams = ['A', 'B', 'C'];
+    const rows = teams.map(t => ({
+      team: t,
+      ...calcTeamStats(t, mcMatchData),
+      nrr: calcTeamNRR(t, mcMatchData)
+    })).sort((a, b) => b.pts - a.pts || b.nrr - a.nrr);
+    const done = MC_SCHEDULE.filter(m => m.stage === 'group' && mcMatchData[m.id]?.completed).length;
+    if (done < 3) return [];
+    return [rows[0].team, rows[1].team];
+  }
+
+  function buildMatchCard(m, isFinal = false) {
+    const d = mcMatchData[m.id];
+    const status = !d ? 'pending' : d.completed ? 'done' : 'live';
+    const statusLabel = { pending: 'Upcoming', live: '● Live', done: 'Completed' }[status];
+    const ta = m.teamA, tb = m.teamB;
+    const taColor = TEAM_COLORS[ta] || '#888';
+    const tbColor = TEAM_COLORS[tb] || '#888';
+
+    let taScore = '—', tbScore = '—';
+    let taOvers = '', tbOvers = '';
+    let resultHtml = '';
+    let taWin = false, tbWin = false;
+
+    if (d) {
+      taScore = `${d.teamA.runs}/${d.teamA.wkts}`;
+      tbScore = `${d.teamB.runs}/${d.teamB.wkts}`;
+      taOvers = `(${d.teamA.overs} ov)`;
+      tbOvers = `(${d.teamB.overs} ov)`;
+      taWin = d.teamA.runs > d.teamB.runs;
+      tbWin = d.teamB.runs > d.teamA.runs;
+      if (d.completed) {
+        const winTeam = taWin ? `Team ${ta}` : tbWin ? `Team ${tb}` : null;
+        const margin = taWin
+          ? `${d.teamA.runs - d.teamB.runs} runs`
+          : tbWin
+          ? `${10 - d.teamB.wkts} wkts`
+          : '';
+        resultHtml = `<div class="match-result">${winTeam
+          ? `<span class="winner-text">Team ${taWin ? ta : tb} won</span> by ${margin}`
+          : 'Match Tied'}</div>`;
+      }
+    }
+
+    return `<div class="match-card${isFinal ? ' final-card' : ''}">
+      <div class="match-card-head">
+        <span>${m.label}${d?.overs ? ` · ${d.overs} overs` : ''}</span>
+        <span class="status-badge ${status}">${statusLabel}</span>
+      </div>
+      <div class="match-card-body">
+        <div class="match-team-row">
+          <span class="match-team-name" style="color:${taColor}">Team ${ta}</span>
+          <div style="text-align:right">
+            <span class="match-score${taWin ? ' winner' : ''}">${taScore}</span>
+            <div class="match-overs">${taOvers}</div>
+          </div>
+        </div>
+        <div class="match-team-row">
+          <span class="match-team-name" style="color:${tbColor}">Team ${tb}</span>
+          <div style="text-align:right">
+            <span class="match-score${tbWin ? ' winner' : ''}">${tbScore}</span>
+            <div class="match-overs">${tbOvers}</div>
+          </div>
+        </div>
+        ${resultHtml}
+      </div>
+    </div>`;
+  }
+
+  function mcRenderScoreInputs() {
+    const el = document.getElementById('scoreInputs');
+    const allMatches = MC_SCHEDULE.filter(m => m.stage === 'group');
+
+    // Only show final input once group stage is done
+    const groupDone = MC_SCHEDULE.filter(m => m.stage === 'group').every(m => mcMatchData[m.id]?.completed);
+    const qualTeams = getQualifiedTeams();
+    const allSchedule = groupDone
+      ? [...allMatches, { ...MC_SCHEDULE.find(m => m.id === 'final'), teamA: qualTeams[0] || '?', teamB: qualTeams[1] || '?' }]
+      : allMatches;
+
+    el.innerHTML = allSchedule.map(m => {
+      const d = mcMatchData[m.id] || {};
+      const ta = m.teamA, tb = m.teamB;
+      const done = d.completed;
+      const dis = done ? 'disabled' : '';
+      const taC = TEAM_COLORS[ta] || '#888';
+      const tbC = TEAM_COLORS[tb] || '#888';
+
+      return `<div class="score-input-block" id="sib_${m.id}">
+        <div class="score-input-head">
+          <span>${m.label}: <span style="color:${taC}">Team ${ta}</span> vs <span style="color:${tbC}">Team ${tb}</span></span>
+          ${done ? '<span style="color:#7fe3a4;font-family:var(--font-mono);font-size:12px">✓ Saved</span>' : ''}
+        </div>
+        <div class="score-input-body">
+          <div class="score-field" style="margin-bottom:14px">
+            <label>Match Overs (max)</label>
+            <input type="number" min="1" max="50" id="mi_${m.id}_overs"
+              value="${d.overs || ''}" placeholder="e.g. 10" ${dis}>
+          </div>
+          <div class="score-team-label" style="color:${taC}">Team ${ta} Innings</div>
+          <div class="score-row">
+            <div class="score-field"><label>Runs</label>
+              <input type="number" min="0" id="mi_${m.id}_tA_runs" value="${d.teamA?.runs ?? ''}" placeholder="0" ${dis}></div>
+            <div class="score-field"><label>Wickets</label>
+              <input type="number" min="0" max="10" id="mi_${m.id}_tA_wkts" value="${d.teamA?.wkts ?? ''}" placeholder="0" ${dis}></div>
+            <div class="score-field"><label>Overs</label>
+              <input type="number" min="0" step="0.1" id="mi_${m.id}_tA_overs" value="${d.teamA?.overs ?? ''}" placeholder="0.0" ${dis}></div>
+          </div>
+          <div class="score-team-label" style="color:${tbC}">Team ${tb} Innings</div>
+          <div class="score-row">
+            <div class="score-field"><label>Runs</label>
+              <input type="number" min="0" id="mi_${m.id}_tB_runs" value="${d.teamB?.runs ?? ''}" placeholder="0" ${dis}></div>
+            <div class="score-field"><label>Wickets</label>
+              <input type="number" min="0" max="10" id="mi_${m.id}_tB_wkts" value="${d.teamB?.wkts ?? ''}" placeholder="0" ${dis}></div>
+            <div class="score-field"><label>Overs</label>
+              <input type="number" min="0" step="0.1" id="mi_${m.id}_tB_overs" value="${d.teamB?.overs ?? ''}" placeholder="0.0" ${dis}></div>
+          </div>
+          ${!done ? `<button class="btn btn-primary save-match-btn" onclick="mcSaveMatchFromUI('${m.id}','${ta}','${tb}',false)">Save (In Progress)</button>
+          <button class="btn btn-danger save-match-btn" style="margin-top:8px" onclick="mcSaveMatchFromUI('${m.id}','${ta}','${tb}',true)">✓ Mark as Completed</button>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Called from inline onclick in the rendered HTML
+  window.mcSaveMatchFromUI = function(matchId, ta, tb, completed) {
+    const g = id => parseFloat(document.getElementById(id)?.value || '0') || 0;
+    const gi = id => parseInt(document.getElementById(id)?.value || '0') || 0;
+
+    const overs = g(`mi_${matchId}_overs`) || 10;
+    const data = {
+      overs,
+      matchTeamA: ta, matchTeamB: tb,
+      teamA: { runs: gi(`mi_${matchId}_tA_runs`), wkts: gi(`mi_${matchId}_tA_wkts`), overs: g(`mi_${matchId}_tA_overs`) },
+      teamB: { runs: gi(`mi_${matchId}_tB_runs`), wkts: gi(`mi_${matchId}_tB_wkts`), overs: g(`mi_${matchId}_tB_overs`) },
+      completed: !!completed,
+      savedAt: Date.now()
+    };
+    mcSaveMatch(matchId, data);
+  };
+
+  // ================================================================
+  // QUALIFICATION TRACKER
+  // ================================================================
+
+  function mcRenderQualification() {
+    const el = document.getElementById('qualContent');
+    const teams = ['A', 'B', 'C'];
+    const completedGroup = MC_SCHEDULE.filter(m => m.stage === 'group' && mcMatchData[m.id]?.completed);
+    const pendingGroup = MC_SCHEDULE.filter(m => m.stage === 'group' && !mcMatchData[m.id]?.completed);
+
+    // All group matches done — show final qualifier info
+    if (pendingGroup.length === 0) {
+      const qualTeams = getQualifiedTeams();
+      const rows = teams.map(t => ({
+        team: t, ...calcTeamStats(t, mcMatchData),
+        nrr: calcTeamNRR(t, mcMatchData)
+      })).sort((a, b) => b.pts - a.pts || b.nrr - a.nrr);
+      el.innerHTML = `<div class="qual-all-done">
+        🏆 Group stage complete.<br>
+        <strong style="color:var(--willow-bright)">Team ${qualTeams[0]}</strong> and
+        <strong style="color:var(--willow-bright)">Team ${qualTeams[1]}</strong> advance to the Final.<br>
+        <span style="color:#ff8f86">Team ${rows[2].team}</span> is eliminated.
+      </div>`;
+      return;
+    }
+
+    // Build qualification scenarios for each team
+    const cards = [];
+    const statsNow = {};
+    teams.forEach(t => {
+      statsNow[t] = {
+        ...calcTeamStats(t, mcMatchData),
+        nrr: calcTeamNRR(t, mcMatchData)
+      };
+    });
+
+    // Max points a team can earn
+    function maxPoints(t) {
+      let extra = 0;
+      pendingGroup.forEach(m => {
+        if (m.teamA === t || m.teamB === t) extra += 2;
+      });
+      return statsNow[t].pts + extra;
+    }
+
+    teams.forEach(t => {
+      const myMax = maxPoints(t);
+      const myNow = statsNow[t];
+      const rivals = teams.filter(r => r !== t);
+
+      // Can team still mathematically qualify?
+      const rivalMinPts = Math.min(...rivals.map(r => statsNow[r].pts));
+      const couldQual = myMax >= rivalMinPts;
+
+      let msg = [];
+      let sentiment = 'qual-warning';
+
+      if (myNow.pts >= 4) {
+        // Already have 4 pts — mathematically qualified regardless
+        sentiment = 'qual-positive';
+        msg.push(`<p><strong>Already qualified</strong> — 4 points secured with ${3 - pendingGroup.filter(m => m.teamA === t || m.teamB === t).length} games played.</p>`);
+      } else if (!couldQual) {
+        sentiment = 'qual-negative';
+        msg.push(`<p><strong>Eliminated</strong> — cannot reach the Final even with wins in remaining games.</p>`);
+      } else {
+        // Remaining games involving this team
+        const myPending = pendingGroup.filter(m => m.teamA === t || m.teamB === t);
+        myPending.forEach(m => {
+          const opp = m.teamA === t ? m.teamB : m.teamA;
+          const oppStats = statsNow[opp];
+
+          if (myNow.pts + 2 > oppStats.pts) {
+            sentiment = 'qual-positive';
+            msg.push(`<p>vs Team ${opp}: A <strong>win</strong> is enough to confirm qualification.</p>`);
+          } else if (myNow.pts + 2 === oppStats.pts) {
+            // Same pts after win — NRR will decide
+            const nrrDiff = (myNow.nrr - oppStats.nrr).toFixed(3);
+            sentiment = 'qual-warning';
+            msg.push(`<p>vs Team ${opp}: Must <strong>win</strong> — if points tie, NRR decides. Current NRR gap: ${nrrDiff > 0 ? '+' : ''}${nrrDiff}.</p>`);
+
+            // Give a simple NRR target
+            const liveMatch = mcMatchData[m.id];
+            if (liveMatch && !liveMatch.completed) {
+              const mo = liveMatch.overs || 10;
+              const batFirst = liveMatch.teamA === t;
+              if (!batFirst && liveMatch.teamA.runs > 0) {
+                // Chasing — tell them how many runs needed in how many overs to improve NRR
+                const target = liveMatch.teamA.runs + 1;
+                const oversLeft = mo - oversToDecimal(liveMatch.teamB.overs);
+                msg.push(`<p>Chasing ${target}. To improve NRR, aim to win in <strong>${Math.ceil(oversLeft)} overs or fewer</strong>.</p>`);
+              }
+            }
+          } else {
+            // Win might not be enough — still need other results
+            msg.push(`<p>vs Team ${opp}: <strong>Must win</strong>, and may need other results to go in their favour.</p>`);
+          }
+        });
+
+        // If no more games involving this team
+        if (myPending.length === 0) {
+          // Waiting for other results
+          msg.push(`<p>Done playing — waiting on other results. Current points: <strong>${myNow.pts}</strong>, NRR: <strong>${myNow.nrr >= 0 ? '+' : ''}${myNow.nrr.toFixed(3)}</strong>.</p>`);
+          const canBeOvertaken = rivals.some(r => statsNow[r].pts + (pendingGroup.filter(m => m.teamA === r || m.teamB === r).length * 2) >= myNow.pts);
+          if (!canBeOvertaken) {
+            sentiment = 'qual-positive';
+            msg.push(`<p><strong>Cannot be overtaken</strong> — qualification confirmed.</p>`);
+          } else {
+            sentiment = 'qual-warning';
+          }
+        }
+      }
+
+      if (msg.length > 0) {
+        cards.push(`<div class="qual-card ${sentiment}">
+          <h4>Team ${t} — ${myNow.pts} pts</h4>
+          ${msg.join('')}
+        </div>`);
+      }
+    });
+
+    el.innerHTML = cards.join('') || '<div class="qual-all-done">Enter match scores to see qualification scenarios.</div>';
+  } // end mcRenderQualification
+
+} // end initApp
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initApp);
