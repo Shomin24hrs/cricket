@@ -1,5 +1,5 @@
 // ============================================================
-// FIRESTORE SECURITY RULES for Yukon Strikers Tournament app
+// FIRESTORE SECURITY RULES — KSCY Tournament App
 // ============================================================
 // HOW TO APPLY:
 // 1. Firebase console → your project → Build → Firestore Database
@@ -8,21 +8,12 @@
 // 4. Click "Publish"
 // ============================================================
 //
-// What these rules do:
-// - Anyone can READ the players list and the generated teams
-//   (so the homepage can show "X registered" and the team sheets
-//   to everyone, as you asked).
-// - Anyone can CREATE a new player (register) but cannot edit or
-//   delete another player's entry once created — this stops people
-//   from tampering with others' registrations.
-// - Only the "tournament/teams" document can be overwritten (this
-//   is what the password-protected "Generate Teams" button writes
-//   to). The real protection on team generation is the password
-//   gate in the app UI — Firestore rules alone can't enforce a
-//   custom password without Firebase Auth, so treat the in-app
-//   password as a light deterrent for your club members, not
-//   bank-grade security. See note at the bottom if you want
-//   stronger protection later.
+// Collections covered:
+//   players         — registrations (public read, create-once)
+//   tournament      — generated teams (public read/write, password in UI)
+//   s1t1_matches    — match results for points table (public read/write)
+//   s1t1_live       — live scorer state (public read, write from scorer UI)
+//   s1t1_scorecards — completed match scorecards (public read/write)
 //
 // ============================================================
 
@@ -31,7 +22,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Players collection — registrations
+    // Players — anyone can read, create once; no edits or deletes
     match /players/{playerId} {
       allow read: if true;
       allow create: if request.resource.data.keys().hasAll(['firstName', 'lastName', 'fullName', 'role'])
@@ -39,28 +30,42 @@ service cloud.firestore {
                     && request.resource.data.lastName is string
                     && request.resource.data.firstName.size() > 0
                     && request.resource.data.lastName.size() > 0;
-      allow update, delete: if false; // no edits/deletes from the client
+      allow update, delete: if false;
     }
 
-    // Tournament document — holds the generated teams
+    // Tournament — generated teams; password-gated in UI
     match /tournament/{docId} {
       allow read: if true;
-      allow write: if true; // gated by the in-app password, not Firestore rules
+      allow write: if true;
+    }
+
+    // Match results — written by Match Centre admin and scorer;
+    // read by all visitors for the live points table
+    match /s1t1_matches/{matchId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Live scorer state — written by scorer.html after every ball;
+    // read by index.html for the live public scorecard
+    match /s1t1_live/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Completed match scorecards — written on match completion
+    match /s1t1_scorecards/{matchId} {
+      allow read: if true;
+      allow write: if true;
     }
   }
 }
 
 // ============================================================
-// OPTIONAL — STRONGER PROTECTION LATER
+// NOTE ON SECURITY
 // ============================================================
-// If you ever want the password to be enforced server-side (not just
-// in the browser), the proper way is:
-//   1. Enable Firebase Authentication (Anonymous or Email sign-in)
-//   2. Create a Cloud Function "generateTeams" that checks a secret
-//      and only that function is allowed to write to tournament/teams
-//   3. Lock down /tournament/{docId} writes to "if false" in these
-//      rules, and call the Cloud Function from the app instead.
-// This is a meaningful step up in complexity — for a 21-person club
-// tournament, the current setup is reasonable. Just don't share the
-// password publicly.
+// All writes are currently open (gated only by in-app passwords,
+// not Firestore rules). For a private club tournament this is fine.
+// If you want stronger protection, see the note in the original
+// firestore.rules.txt about using Firebase Auth + Cloud Functions.
 // ============================================================
