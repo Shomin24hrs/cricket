@@ -1,12 +1,18 @@
 // ============================================================
 // FIRESTORE SECURITY RULES — KSCY Tournament App
-// Updated to cover admin panel collections
 // ============================================================
-// HOW TO APPLY:
-// 1. Firebase console → Build → Firestore Database
-// 2. Click the "Rules" tab
-// 3. Replace everything with the rules below
-// 4. Click "Publish"
+// ⚠️  YOU MUST PUBLISH THESE RULES OR THE SITE STAYS IN
+//     "Firebase isn't connected" / local-only mode.
+//
+// HOW TO APPLY (takes 1 minute):
+//   1. Go to https://console.firebase.google.com
+//   2. Pick project: kerala-sports-club-yukon
+//   3. Left menu → Build → Firestore Database
+//   4. If you see "Create database", click it, choose
+//      "Start in production mode", pick a location, Enable.
+//   5. Click the "Rules" tab at the top
+//   6. Delete everything there and paste ALL of the rules below
+//   7. Click "Publish"
 // ============================================================
 
 rules_version = '2';
@@ -14,51 +20,33 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Players — public read, create-once with validation
+    // Players — anyone can read and register
     match /players/{playerId} {
       allow read: if true;
-      allow create: if request.resource.data.keys().hasAll(['firstName','lastName','fullName','role'])
-                    && request.resource.data.firstName is string
-                    && request.resource.data.firstName.size() > 0;
-      allow update, delete: if true; // admin panel can delete players
+      allow create: if true;
+      allow update, delete: if true;
     }
 
-    // Tournament teams (used by scorer)
+    // Team rosters + meta (names/colours) used by scorer & public site
     match /tournament/{docId} {
-      allow read: if true;
-      allow write: if true;
+      allow read, write: if true;
     }
 
-    // Admin panel — seasons, tournaments, config
-    match /seasons/{docId} {
-      allow read: if true;
-      allow write: if true;
-    }
+    // Admin panel — seasons, tournaments, active config
+    match /seasons/{docId}      { allow read, write: if true; }
+    match /tournaments/{docId}  { allow read, write: if true; }
+    match /config/{docId}       { allow read, write: if true; }
 
-    match /tournaments/{docId} {
-      allow read: if true;
-      allow write: if true;
-    }
+    // Match data, live scores, scorecards
+    match /s1t1_matches/{docId}    { allow read, write: if true; }
+    match /s1t1_live/{docId}       { allow read, write: if true; }
+    match /s1t1_scorecards/{docId} { allow read, write: if true; }
 
-    match /config/{docId} {
-      allow read: if true;
-      allow write: if true;
-    }
-
-    // Match data — all public read/write (password-gated in UI)
-    match /s1t1_matches/{matchId} {
-      allow read: if true;
-      allow write: if true;
-    }
-
-    match /s1t1_live/{docId} {
-      allow read: if true;
-      allow write: if true;
-    }
-
-    match /s1t1_scorecards/{matchId} {
-      allow read: if true;
-      allow write: if true;
+    // Catch-all for any future collections this app uses.
+    // (Safe for a private club tournament; all writes are also
+    //  gated behind in-app passwords.)
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }

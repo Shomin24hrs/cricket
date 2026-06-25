@@ -60,34 +60,39 @@
     console.log('[KSCY] setupFirebase starting, configIsFilledIn=', configIsFilledIn);
 
     if (configIsFilledIn) {
-      try {
-        console.log('[KSCY] importing firebase-app.js...');
-        const { initializeApp } = await withTimeout(
-          import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"), 5000, 'IMPORT_APP'
-        );
-        console.log('[KSCY] firebase-app.js loaded at +', Date.now() - t0, 'ms');
+      // Try up to 2 times — a cold load on a slow network can miss the
+      // first import window, but usually succeeds immediately on retry.
+      for (let attempt = 1; attempt <= 2 && !firebaseReady; attempt++) {
+        try {
+          console.log(`[KSCY] importing firebase-app.js (attempt ${attempt})...`);
+          const { initializeApp } = await withTimeout(
+            import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"), 12000, 'IMPORT_APP'
+          );
+          console.log('[KSCY] firebase-app.js loaded at +', Date.now() - t0, 'ms');
 
-        console.log('[KSCY] importing firebase-firestore.js...');
-        const firestoreMod = await withTimeout(
-          import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"), 5000, 'IMPORT_FIRESTORE'
-        );
-        console.log('[KSCY] firebase-firestore.js loaded at +', Date.now() - t0, 'ms');
+          console.log('[KSCY] importing firebase-firestore.js...');
+          const firestoreMod = await withTimeout(
+            import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"), 12000, 'IMPORT_FIRESTORE'
+          );
+          console.log('[KSCY] firebase-firestore.js loaded at +', Date.now() - t0, 'ms');
 
-        const app = initializeApp(firebaseConfig);
-        db = firestoreMod.getFirestore(app);
-        console.log('[KSCY] Firestore initialized at +', Date.now() - t0, 'ms');
-        fbFns = {
-          collection: firestoreMod.collection, addDoc: firestoreMod.addDoc,
-          getDocs: firestoreMod.getDocs, getDoc: firestoreMod.getDoc,
-          doc: firestoreMod.doc, setDoc: firestoreMod.setDoc,
-          deleteDoc: firestoreMod.deleteDoc, onSnapshot: firestoreMod.onSnapshot,
-          query: firestoreMod.query, orderBy: firestoreMod.orderBy,
-          serverTimestamp: firestoreMod.serverTimestamp
-        };
-        firebaseReady = true;
-      } catch (e) {
-        console.error('[KSCY] Firebase failed to load/initialize at +' + (Date.now() - t0) + 'ms — falling back to local mode.', e);
-        firebaseReady = false;
+          const app = initializeApp(firebaseConfig);
+          db = firestoreMod.getFirestore(app);
+          console.log('[KSCY] Firestore initialized at +', Date.now() - t0, 'ms');
+          fbFns = {
+            collection: firestoreMod.collection, addDoc: firestoreMod.addDoc,
+            getDocs: firestoreMod.getDocs, getDoc: firestoreMod.getDoc,
+            doc: firestoreMod.doc, setDoc: firestoreMod.setDoc,
+            deleteDoc: firestoreMod.deleteDoc, onSnapshot: firestoreMod.onSnapshot,
+            query: firestoreMod.query, orderBy: firestoreMod.orderBy,
+            serverTimestamp: firestoreMod.serverTimestamp
+          };
+          firebaseReady = true;
+        } catch (e) {
+          console.error(`[KSCY] Firebase attempt ${attempt} failed at +${Date.now() - t0}ms.`, e);
+          if (attempt === 2) { firebaseReady = false; }
+          else { await new Promise(r => setTimeout(r, 600)); } // brief pause before retry
+        }
       }
     } else {
       firebaseReady = false;
@@ -103,12 +108,9 @@
 
   setupFirebase();
 
-  // Watchdog: no matter what happens above (a hang, a slow network, an
-  // unexpected error outside the inner try/catch), guarantee fb-ready
-  // fires within 11 seconds so the rest of the page never stays dead.
-  // (Set comfortably above the 2x5s import timeouts above so the
-  // import-level timeout is always the one that fires first in the
-  // slow-network case, giving a precise, attributable error.)
+  // Watchdog: guarantee fb-ready fires within 28 seconds so the page
+  // never stays dead. Set above the 2 attempts × 2 imports × 12s so a
+  // genuinely slow import is the one that resolves first, not this.
   setTimeout(() => {
     if (!window.__fbReadyFired) {
       console.error("Firebase setup timed out — falling back to local mode.");
@@ -116,7 +118,7 @@
       window.__fbReadyFired = true;
       window.dispatchEvent(new Event("fb-ready"));
     }
-  }, 11000);
+  }, 28000);
 </script>
 
 <style>
@@ -686,7 +688,7 @@
 <main>
 
   <div class="fb-warning" id="fbWarning">
-    <strong>Firebase isn't connected yet.</strong> This page is showing the design and working with temporary local data only — entries will be lost on refresh. Open <code>index.html</code> in a code editor and paste your Firebase config where it says <code>PASTE YOUR FIREBASE CONFIG HERE</code> near the top of the file. See the comment block for step-by-step setup instructions.
+    <strong>Couldn't reach the database.</strong> The page is running on temporary local data — entries won't be saved. This usually means the Firestore <strong>security rules haven't been published yet</strong> (open Firebase Console → Firestore → Rules → paste the rules from <code>firestore.rules.txt</code> → Publish), or the network is slow/blocked. Refresh the page once that's done.
   </div>
 
   <section class="hero">
@@ -999,22 +1001,23 @@ function initApp() {
   // never hangs forever, because index.html guarantees fb-ready fires
   // within 6 seconds no matter what.
   const fbReadyPromise = new Promise((resolve) => {
-    if (window.__fbReadyFired) {
+    function applyFbStatus() {
       fb = window.__fb;
       usingLocal = !fb.firebaseReady;
+      const warnEl = document.getElementById('fbWarning');
+      if (warnEl) {
+        if (usingLocal) warnEl.classList.add('show');
+        else warnEl.classList.remove('show'); // Firebase connected — make sure warning is hidden
+      }
       resolve();
+      // Once we know Firebase's real status, attach the live listeners
+      // and re-render with real data instead of the empty placeholder.
+      attachLiveListenersIfReady();
+    }
+    if (window.__fbReadyFired) {
+      applyFbStatus();
     } else {
-      window.addEventListener('fb-ready', () => {
-        fb = window.__fb;
-        usingLocal = !fb.firebaseReady;
-        if (usingLocal) {
-          document.getElementById('fbWarning').classList.add('show');
-        }
-        resolve();
-        // Once we know Firebase's real status, attach the live listeners
-        // and re-render with real data instead of the empty placeholder.
-        attachLiveListenersIfReady();
-      }, { once: true });
+      window.addEventListener('fb-ready', applyFbStatus, { once: true });
     }
   });
 
@@ -1092,12 +1095,14 @@ function initApp() {
     await fbReadyPromise;
     if (usingLocal) return localPlayers;
     try {
-      // Timeout after 4 seconds
+      // Read without orderBy (some docs may lack createdAtLocal); sort client-side.
       const snap = await Promise.race([
-        fb.getDocs(fb.query(fb.collection(fb.db, PLAYERS_COLLECTION), fb.orderBy('createdAtLocal', 'asc'))),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('FIRESTORE_TIMEOUT')), 4000))
+        fb.getDocs(fb.collection(fb.db, PLAYERS_COLLECTION)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('FIRESTORE_TIMEOUT')), 8000))
       ]);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      return snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.createdAtLocal || 0) - (b.createdAtLocal || 0));
     } catch (e) {
       console.warn('[KSCY] Failed to fetch players from Firestore, falling back to local mode:', e);
       usingLocal = true;
@@ -1178,7 +1183,7 @@ function initApp() {
             try {
               await Promise.race([
                 fb.addDoc(fb.collection(fb.db, PLAYERS_COLLECTION), playerDoc),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('FIRESTORE_WRITE_TIMEOUT')), 4000))
+                new Promise((_, reject) => setTimeout(() => reject(new Error('FIRESTORE_WRITE_TIMEOUT')), 10000))
               ]);
               console.log('[KSCY] Firestore save done.');
             } catch (writeErr) {
@@ -1262,32 +1267,20 @@ function initApp() {
   // page is never blank while Firebase is still connecting in the background.
   renderRoster();
 
+  let _liveListenersAttached = false;
   function attachLiveListenersIfReady() {
-    if (!usingLocal) {
-      fb.onSnapshot(fb.query(fb.collection(fb.db, PLAYERS_COLLECTION), fb.orderBy('createdAtLocal', 'asc')), (snap) => {
-        const players = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderRoster(players);
-      }, (err) => {
-        console.error('Roster snapshot error', err);
-        showFbErrorBanner(err.code || err.message || 'connection error');
-        usingLocal = true;
-        renderRoster();
-      });
-
-      // Live team listener too, in case teams were generated elsewhere
-      fb.onSnapshot(fb.doc(fb.db, 'tournament', 'teams'), (snap) => {
-        if (snap.exists()) {
-        }
-      }, (err) => {
-        console.error('Teams snapshot error', err);
-        showFbErrorBanner(err.code || err.message || 'connection error');
-        usingLocal = true;
-      });
-
-      // Fetch once immediately too for instant paint of any already-generated teams
-      fb.getDoc(fb.doc(fb.db, 'tournament', 'teams')).then(snap => {
-      }).catch(() => {});
-    }
+    if (usingLocal || _liveListenersAttached) return;
+    _liveListenersAttached = true;
+    // Live roster — no orderBy so docs missing createdAtLocal still load; sort client-side.
+    fb.onSnapshot(fb.collection(fb.db, PLAYERS_COLLECTION), (snap) => {
+      const players = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.createdAtLocal || 0) - (b.createdAtLocal || 0));
+      renderRoster(players);
+    }, (err) => {
+      console.error('Roster snapshot error', err);
+      showFbErrorBanner(err.code || err.message || 'connection error');
+    });
   }
 
   // In case fb-ready already fired before this point (e.g. very fast

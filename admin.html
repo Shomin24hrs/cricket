@@ -16,16 +16,18 @@
   };
   function race(p,ms){ return Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('TO')),ms))]); }
   async function go(){
-    try{
-      const {initializeApp}=await race(import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"),7000);
-      const fm=await race(import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"),7000);
-      const app=initializeApp(FC);
-      window.__db=fm.getFirestore(app); window.__fm=fm; window.__fbOK=true;
-    }catch(e){ console.error('FB fail',e); window.__fbOK=false; }
+    for(let attempt=1; attempt<=2 && !window.__fbOK; attempt++){
+      try{
+        const {initializeApp}=await race(import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"),12000);
+        const fm=await race(import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"),12000);
+        const app=initializeApp(FC);
+        window.__db=fm.getFirestore(app); window.__fm=fm; window.__fbOK=true;
+      }catch(e){ console.error('FB fail attempt '+attempt,e); if(attempt<2)await new Promise(r=>setTimeout(r,600)); else window.__fbOK=false; }
+    }
     window.__fbDone=true; window.dispatchEvent(new Event('fb-ready'));
   }
   go();
-  setTimeout(()=>{ if(!window.__fbDone){window.__fbOK=false;window.__fbDone=true;window.dispatchEvent(new Event('fb-ready'));} },9000);
+  setTimeout(()=>{ if(!window.__fbDone){window.__fbOK=false;window.__fbDone=true;window.dispatchEvent(new Event('fb-ready'));} },28000);
 </script>
 
 <style>
