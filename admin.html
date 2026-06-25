@@ -255,9 +255,14 @@ let DB = null, FM = null;
 let state = {
   seasons: {},      // id → data
   tournaments: {},  // id → data
-  players: [],      // array of player docs
-  activeConfig: null // { seasonId, tournamentId, seasonName, tournamentName }
+  players: [],      // array of player docs (the registration pool)
+  activeConfig: null, // { seasonId, tournamentId, seasonName, tournamentName }
+  teams: []         // canonical teams [{id,name,color,players:[{name,role}]}] — synced to tournament/teams
 };
+
+// Default colour palette for teams
+const TEAM_PALETTE = ['#c8392f','#2f6fb0','#3f8f5c','#e3a857','#7c5cbf','#2a9d8f','#e76f51','#264653','#f4a261','#457b9d'];
+const DEFAULT_TEAM_NAMES = { A:'Team A', B:'Team B', C:'Team C', D:'Team D', E:'Team E', F:'Team F', G:'Team G', H:'Team H' };
 
 // ---- Auth ----
 function doAuth(){
@@ -278,20 +283,71 @@ window.addEventListener('fb-ready', () => {
 
 async function loadAll(){
   try{
-    const [seasonsSnap, tournsSnap, playersSnap, configSnap] = await Promise.all([
+    // Load everything that already exists in Firebase. The existing
+    // tournament/teams document (Team A/B/C etc.) is the source of truth.
+    const [seasonsSnap, tournsSnap, playersSnap, configSnap, teamsSnap, metaSnap] = await Promise.all([
       FM.getDocs(FM.collection(DB, 'seasons')),
       FM.getDocs(FM.collection(DB, 'tournaments')),
-      FM.getDocs(FM.query(FM.collection(DB, 'players'), FM.orderBy('createdAtLocal','asc'))),
-      FM.getDoc(FM.doc(DB, 'config', 'active'))
+      FM.getDocs(FM.collection(DB, 'players')),
+      FM.getDoc(FM.doc(DB, 'config', 'active')),
+      FM.getDoc(FM.doc(DB, 'tournament', 'teams')),
+      FM.getDoc(FM.doc(DB, 'tournament', 'meta'))
     ]);
     state.seasons = {};
     seasonsSnap.docs.forEach(d => { state.seasons[d.id] = { id: d.id, ...d.data() }; });
     state.tournaments = {};
     tournsSnap.docs.forEach(d => { state.tournaments[d.id] = { id: d.id, ...d.data() }; });
-    state.players = playersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Sort players by createdAtLocal client-side (handles missing field)
+    state.players = playersSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a,b) => (a.createdAtLocal||0) - (b.createdAtLocal||0));
     state.activeConfig = configSnap.exists() ? configSnap.data() : null;
+
+    // Build the canonical team list from existing Firebase data.
+    const rawTeams = teamsSnap.exists() ? (teamsSnap.data().teams || {}) : {};
+    const meta = metaSnap.exists() ? (metaSnap.data().teams || {}) : {};
+    state.teams = buildUnifiedTeams(rawTeams, meta);
   } catch(e){ console.warn('loadAll error', e); }
   renderAll();
+}
+
+// Build [{id,name,color,players:[{name,role}]}] from the raw tournament/teams
+// map plus any saved names/colours in tournament/meta. Whatever exists in the
+// database is treated as the working team structure.
+function buildUnifiedTeams(rawTeams, meta){
+  const ids = Object.keys(rawTeams || {}).sort();
+  return ids.map((id, i) => {
+    const members = (rawTeams[id] || []).map(p => ({
+      name: p.fullName || p.name || '',
+      role: p.role || 'both'
+    })).filter(p => p.name);
+    const m = meta[id] || {};
+    return {
+      id,
+      name: m.name || DEFAULT_TEAM_NAMES[id] || `Team ${id}`,
+      color: m.color || TEAM_PALETTE[i % TEAM_PALETTE.length],
+      players: members
+    };
+  });
+}
+
+// Persist state.teams back to Firebase in BOTH formats:
+//   tournament/teams  → { teams: { A:[{fullName,role,...}], ... } }  (scorer + index read this)
+//   tournament/meta   → { teams: { A:{name,color}, ... } }           (names + colours)
+async function persistTeams(){
+  const teamsMap = {};
+  const metaMap = {};
+  state.teams.forEach(t => {
+    teamsMap[t.id] = (t.players||[]).map(p => ({
+      fullName: p.name,
+      role: p.role || 'both',
+      firstName: (p.name||'').split(' ')[0],
+      lastName: (p.name||'').split(' ').slice(1).join(' ')
+    }));
+    metaMap[t.id] = { name: t.name, color: t.color };
+  });
+  await saveDoc('tournament', 'teams', { teams: teamsMap, updatedAt: Date.now() });
+  await saveDoc('tournament', 'meta', { teams: metaMap, updatedAt: Date.now() });
 }
 
 async function saveDoc(collection, id, data){
@@ -355,6 +411,8 @@ function renderOverview(){
   const tournaments = Object.values(state.tournaments);
   const activeTId = state.activeConfig?.tournamentId;
   const activeTn = activeTId ? state.tournaments[activeTId] : null;
+  const teams = state.teams;
+  const assignedCount = teams.reduce((s,t) => s + (t.players||[]).length, 0);
 
   el.innerHTML = `
     <div class="section-head">
@@ -362,58 +420,159 @@ function renderOverview(){
     </div>
 
     <div class="stats-row">
+      <div class="stat-cell"><div class="stat-val">${state.players.length}</div><div class="stat-lbl">Registered Players</div></div>
+      <div class="stat-cell"><div class="stat-val">${teams.length}</div><div class="stat-lbl">Teams</div></div>
       <div class="stat-cell"><div class="stat-val">${seasons.length}</div><div class="stat-lbl">Seasons</div></div>
       <div class="stat-cell"><div class="stat-val">${tournaments.length}</div><div class="stat-lbl">Tournaments</div></div>
-      <div class="stat-cell"><div class="stat-val">${state.players.length}</div><div class="stat-lbl">Players</div></div>
-      <div class="stat-cell"><div class="stat-val">${activeTn ? (activeTn.teams||[]).length : '—'}</div><div class="stat-lbl">Teams (Active)</div></div>
     </div>
+
+    ${teams.length ? `
+    <div class="card">
+      <div class="card-head">👥 Teams in Database <span style="font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:none;letter-spacing:0">${assignedCount} players assigned</span></div>
+      <div class="card-body">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+          ${teams.map(t => `
+            <div class="team-chip">
+              <div class="team-dot" style="background:${t.color||'#888'}"></div>
+              <span>${esc(t.name)}</span>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--dim)">${(t.players||[]).length}p</span>
+            </div>`).join('')}
+        </div>
+        <button class="btn btn-gold btn-sm" onclick="showPage('teams')">Manage Teams</button>
+      </div>
+    </div>` : `
+    <div class="card">
+      <div class="card-body" style="text-align:center;padding:26px">
+        <div style="font-size:36px;margin-bottom:10px">👥</div>
+        <div style="font-weight:600;font-size:15px;margin-bottom:6px">No teams in the database yet</div>
+        <div style="color:var(--dim);font-size:13px;margin-bottom:16px">${state.players.length ? `You have ${state.players.length} registered players. Auto-build balanced teams in one click, or add teams manually.` : 'Once players register on the main site, you can build teams here.'}</div>
+        ${state.players.length ? `<button class="btn btn-gold" onclick="openModal('quickAutoSetup')">⚡ Auto-Build Teams</button>` : ''}
+        <button class="btn btn-ghost" onclick="showPage('teams')" style="margin-left:8px">Add Teams Manually</button>
+      </div>
+    </div>`}
 
     ${activeTn ? `
     <div class="card">
       <div class="card-head">🟢 Active Tournament <span class="active-pill">LIVE</span></div>
       <div class="card-body">
-        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
           <div>
             <div style="font-family:var(--disp);font-size:20px;font-weight:800">${esc(activeTn.name)}</div>
             <div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:3px">
-              ${esc(state.seasons[activeTn.seasonId]?.name||'?')} · ${activeTn.overs||10} overs · ${(activeTn.teams||[]).length} teams
+              ${esc(state.seasons[activeTn.seasonId]?.name||'?')} · ${activeTn.overs||10} overs · ${teams.length} teams
             </div>
           </div>
           <div style="margin-left:auto;display:flex;gap:8px">
-            <button class="btn btn-ghost btn-sm" onclick="showPage('teams')">Manage Teams</button>
-            <button class="btn btn-gold btn-sm" onclick="showPage('tournaments')">View All</button>
+            <a href="scorer.html" class="btn btn-gold btn-sm" style="text-decoration:none">🏏 Score Now</a>
           </div>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          ${(activeTn.teams||[]).map(t => `
-            <div class="team-chip">
-              <div class="team-dot" style="background:${t.color||'#888'}"></div>
-              <span>${esc(t.name)}</span>
-              <span style="font-family:var(--mono);font-size:10px;color:var(--dim)">${t.players?.length||0}p</span>
-            </div>`).join('')}
+      </div>
+    </div>` : (teams.length ? `
+    <div class="card" style="border-color:rgba(227,168,87,.4)">
+      <div class="card-body" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:18px">
+        <div style="flex:1;min-width:200px">
+          <div style="font-weight:600;font-size:15px;margin-bottom:4px">Teams are ready — start a tournament</div>
+          <div style="color:var(--dim);font-size:13px">Create a season + tournament to make these ${teams.length} teams playable in the scorer.</div>
         </div>
+        <button class="btn btn-gold" onclick="quickStartTournament()">⚡ Start Tournament</button>
       </div>
-    </div>` : `
-    <div class="card">
-      <div class="card-body" style="text-align:center;padding:30px">
-        <div style="font-size:40px;margin-bottom:12px">⚙️</div>
-        <div style="font-weight:600;font-size:16px;margin-bottom:8px">No active tournament</div>
-        <div style="color:var(--dim);font-size:13px;margin-bottom:16px">Create a season and tournament to get started.</div>
-        <button class="btn btn-gold" onclick="showPage('seasons')">Create First Season</button>
-      </div>
-    </div>`}
+    </div>` : '')}
 
     <div class="card">
       <div class="card-head">Quick Actions</div>
       <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-gold btn-sm" onclick="openModal('newSeason')">+ New Season</button>
-        <button class="btn btn-blue btn-sm" onclick="openModal('newTournament')">+ New Tournament</button>
-        <button class="btn btn-green btn-sm" onclick="openModal('newTeam')">+ Add Team</button>
+        <button class="btn btn-gold btn-sm" onclick="showPage('teams')">👥 Manage Teams</button>
+        <button class="btn btn-blue btn-sm" onclick="showPage('seasons')">📅 Seasons</button>
+        <button class="btn btn-blue btn-sm" onclick="showPage('tournaments')">🏆 Tournaments</button>
         <a href="scorer.html" class="btn btn-ghost btn-sm" style="text-decoration:none">🏏 Open Scorer</a>
         <a href="index.html" class="btn btn-ghost btn-sm" style="text-decoration:none">🌐 View Site</a>
       </div>
     </div>
   `;
+}
+
+// One-click: create a season + tournament that uses the existing teams.
+async function quickStartTournament(){
+  if (!state.teams.length) { toast('Add teams first', 'err'); return; }
+  const year = new Date().getFullYear();
+  let seasonId = Object.keys(state.seasons)[0];
+  if (!seasonId) {
+    seasonId = 's_' + Date.now();
+    const sData = { name: `Season 1 · ${year}`, year, status:'active', createdAt: Date.now(), updatedAt: Date.now() };
+    await saveDoc('seasons', seasonId, sData);
+    state.seasons[seasonId] = { id: seasonId, ...sData };
+  }
+  const tnId = 't_' + Date.now();
+  const tnData = { name:'Tournament 1', seasonId, overs:10, format:'Round Robin', status:'active', createdAt: Date.now(), updatedAt: Date.now() };
+  await saveDoc('tournaments', tnId, tnData);
+  state.tournaments[tnId] = { id: tnId, ...tnData };
+  await activateTournament(tnId);
+  toast('Tournament started ✓');
+  showPage('overview');
+}
+
+// ==============================================================
+// TEAM HELPERS — operate on the canonical state.teams model
+// ==============================================================
+
+// Auto-distribute all registered players across N teams (snake draft by role).
+// Builds fresh teams A..N and replaces state.teams entirely.
+function autoBuildTeams(teamCount){
+  const ids = ['A','B','C','D','E','F','G','H'].slice(0, teamCount);
+  const teams = ids.map((id,i) => ({
+    id,
+    name: DEFAULT_TEAM_NAMES[id] || `Team ${id}`,
+    color: TEAM_PALETTE[i % TEAM_PALETTE.length],
+    players: []
+  }));
+  const roleRank = { allrounder:0, 'batting-allrounder':1, 'bowling-allrounder':2, 'specialist-batter':3, 'specialist-bowler':4 };
+  const ordered = [...state.players].sort((a,b) => (roleRank[a.role]??9) - (roleRank[b.role]??9));
+  let dir = 1, idx = 0;
+  ordered.forEach(p => {
+    teams[idx].players.push({ name: p.fullName, role: p.role || 'both' });
+    idx += dir;
+    if (idx === teamCount) { idx = teamCount - 1; dir = -1; }
+    else if (idx < 0) { idx = 0; dir = 1; }
+  });
+  return teams;
+}
+
+// Re-distribute all registered players across the EXISTING teams (keeps names/colours).
+async function autoAssignToExistingTeams(){
+  if (!state.teams.length) { toast('Add teams first', 'err'); return; }
+  if (!state.players.length) { toast('No registered players', 'err'); return; }
+  if (!confirm(`Distribute all ${state.players.length} players across ${state.teams.length} teams? This replaces current assignments but keeps team names and colours.`)) return;
+
+  state.teams.forEach(t => { t.players = []; });
+  const roleRank = { allrounder:0, 'batting-allrounder':1, 'bowling-allrounder':2, 'specialist-batter':3, 'specialist-bowler':4 };
+  const ordered = [...state.players].sort((a,b) => (roleRank[a.role]??9) - (roleRank[b.role]??9));
+  const n = state.teams.length;
+  let dir = 1, idx = 0;
+  ordered.forEach(p => {
+    state.teams[idx].players.push({ name: p.fullName, role: p.role || 'both' });
+    idx += dir;
+    if (idx === n) { idx = n - 1; dir = -1; }
+    else if (idx < 0) { idx = 0; dir = 1; }
+  });
+  await persistTeams();
+  toast(`${state.players.length} players distributed across ${n} teams ✓`);
+  renderAll();
+}
+
+// Activate a tournament: write config/active. Teams already live in tournament/teams.
+async function activateTournament(tnId){
+  const tn = state.tournaments[tnId];
+  if (!tn) return;
+  const s = state.seasons[tn.seasonId];
+  const config = {
+    seasonId: tn.seasonId, seasonName: s?.name || '?',
+    tournamentId: tnId, tournamentName: tn.name,
+    updatedAt: Date.now()
+  };
+  state.activeConfig = config;
+  await saveDoc('config', 'active', config);
+  // Ensure teams are persisted so the scorer/index pick them up
+  if (state.teams.length) await persistTeams();
 }
 
 // ==============================================================
@@ -506,7 +665,7 @@ function renderTournaments(){
               <tbody>
                 ${sTns.map(t => {
                   const isActive = t.id === activeTId;
-                  const teamCount = (t.teams||[]).length;
+                  const teamCount = state.teams.length;
                   return `<tr>
                     <td>
                       <strong>${esc(t.name)}</strong>
@@ -535,26 +694,7 @@ function renderTournaments(){
 async function setActiveTournament(tnId){
   const tn = state.tournaments[tnId];
   if(!tn) return;
-  const s = state.seasons[tn.seasonId];
-  const config = {
-    seasonId: tn.seasonId, seasonName: s?.name || '?',
-    tournamentId: tnId, tournamentName: tn.name,
-    updatedAt: Date.now()
-  };
-  state.activeConfig = config;
-  await saveDoc('config', 'active', config);
-
-  // Also update tournament/teams so the existing scorer picks it up
-  if((tn.teams||[]).length > 0){
-    const teamsForScorer = {};
-    tn.teams.forEach(t => {
-      teamsForScorer[t.id] = (t.players||[]).map(p => ({
-        fullName: p.name, role: p.role||'both', firstName: p.name.split(' ')[0], lastName: p.name.split(' ').slice(1).join(' ')
-      }));
-    });
-    await saveDoc('tournament', 'teams', { teams: teamsForScorer, updatedAt: Date.now(), tournamentId: tnId });
-  }
-
+  await activateTournament(tnId);
   toast(`${tn.name} is now the active tournament`);
   renderAll();
 }
@@ -564,31 +704,38 @@ async function setActiveTournament(tnId){
 // ==============================================================
 function renderTeams(){
   const el = document.getElementById('pageTeams');
-  const activeTId = state.activeConfig?.tournamentId;
-  const tn = activeTId ? state.tournaments[activeTId] : null;
+  const teams = state.teams;
+  const totalAssigned = teams.reduce((s,t) => s + (t.players||[]).length, 0);
+  const unassigned = state.players.filter(p => !teams.some(t => (t.players||[]).some(tp => tp.name === p.fullName)));
 
   el.innerHTML = `
     <div class="section-head">
       <div>
         <div class="section-title">Teams</div>
-        <div class="section-sub">${tn ? `${esc(tn.name)} · ${(tn.teams||[]).length} teams` : 'No active tournament'}</div>
+        <div class="section-sub">${teams.length} teams · ${totalAssigned} players assigned${unassigned.length ? ` · ${unassigned.length} unassigned` : ''}</div>
       </div>
-      ${tn ? `<button class="btn btn-gold" onclick="openModal('newTeam')">+ Add Team</button>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${teams.length > 0 && state.players.length > 0 ? `<button class="btn btn-blue" onclick="autoAssignToExistingTeams()">⚡ Auto-Assign Players</button>` : ''}
+        <button class="btn btn-gold" onclick="openModal('newTeam')">+ Add Team</button>
+      </div>
     </div>
 
-    ${!tn ? `
+    ${state.players.length > 0 ? `
+    <div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-bottom:14px;padding:8px 12px;background:rgba(47,111,176,.08);border:1px solid rgba(47,111,176,.25);border-radius:6px">
+      💡 These teams come straight from the database. Edit names, recolour, add or delete teams, and reassign players — every change saves immediately and the scorer & public site update automatically.
+    </div>` : ''}
+
+    ${!teams.length ? `
       <div class="card">
         <div class="card-body" style="text-align:center;padding:24px">
-          <div style="color:var(--dim);margin-bottom:12px">No active tournament. Set one active first.</div>
-          <button class="btn btn-gold" onclick="showPage('tournaments')">Go to Tournaments</button>
+          <div style="color:var(--dim);margin-bottom:12px">No teams in the database yet.</div>
+          ${state.players.length ? `<button class="btn btn-gold" onclick="openModal('quickAutoSetup')">⚡ Auto-Build from ${state.players.length} Players</button>
+          <button class="btn btn-ghost" onclick="openModal('newTeam')" style="margin-left:8px">+ Add Team Manually</button>`
+          : `<button class="btn btn-gold" onclick="openModal('newTeam')">+ Add First Team</button>`}
         </div>
       </div>` :
-    !(tn.teams||[]).length ? `
-      <div class="card">
-        <div class="card-body" style="text-align:center;padding:24px;color:var(--dim)">No teams yet. Add the first team!</div>
-      </div>` :
     `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px">
-      ${tn.teams.map((team, idx) => `
+      ${teams.map((team, idx) => `
         <div class="card">
           <div class="card-head" style="border-left:4px solid ${team.color||'#888'}">
             <div style="display:flex;align-items:center;gap:10px">
@@ -613,34 +760,30 @@ function renderTeams(){
           </div>
         </div>`).join('')}
     </div>
-    <div style="margin-top:16px">
-      <button class="btn btn-green" onclick="syncTeamsToScorer()">🔄 Sync Teams to Scorer</button>
-      <span style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:12px">Push team rosters to Firestore so the scorer picks them up</span>
-    </div>`}
+    ${unassigned.length ? `
+    <div class="card" style="margin-top:16px">
+      <div class="card-head">⚠ Unassigned Players (${unassigned.length})</div>
+      <div class="card-body">
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          ${unassigned.map(p => `<span class="player-chip">${esc(p.fullName)}<span style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-left:4px">${p.role||'?'}</span></span>`).join('')}
+        </div>
+      </div>
+    </div>` : ''}`}
   `;
 }
 
 async function syncTeamsToScorer(){
-  const activeTId = state.activeConfig?.tournamentId;
-  const tn = activeTId ? state.tournaments[activeTId] : null;
-  if(!tn || !(tn.teams||[]).length){ toast('No teams to sync', 'err'); return; }
-  const teamsForScorer = {};
-  tn.teams.forEach(t => {
-    teamsForScorer[t.id] = (t.players||[]).map(p => ({
-      fullName: p.name, role: p.role||'both', firstName: p.name.split(' ')[0], lastName: p.name.split(' ').slice(1).join(' ')
-    }));
-  });
-  await saveDoc('tournament', 'teams', { teams: teamsForScorer, updatedAt: Date.now(), tournamentId: tn.id });
-  toast('Teams synced to scorer ✓');
+  if(!state.teams.length){ toast('No teams to sync', 'err'); return; }
+  await persistTeams();
+  toast('Teams synced ✓');
 }
 
 async function confirmDeleteTeam(teamId){
-  if(!confirm(`Delete team "${teamId}" from the active tournament? This cannot be undone.`)) return;
-  const activeTId = state.activeConfig?.tournamentId;
-  if(!activeTId) return;
-  const tn = state.tournaments[activeTId];
-  tn.teams = (tn.teams||[]).filter(t => t.id !== teamId);
-  await saveDoc('tournaments', activeTId, { teams: tn.teams });
+  const team = state.teams.find(t => t.id === teamId);
+  if(!team) return;
+  if(!confirm(`Delete "${team.name}"? Its players become unassigned. This cannot be undone.`)) return;
+  state.teams = state.teams.filter(t => t.id !== teamId);
+  await persistTeams();
   toast('Team deleted');
   renderAll();
 }
@@ -651,28 +794,55 @@ async function confirmDeleteTeam(teamId){
 function renderPlayers(){
   const el = document.getElementById('pagePlayers');
   const players = state.players;
-  const roleMap = { batting:'🏏 Batting', bowling:'⚾ Bowling', both:'⭐ All-round' };
+
+  // Map each player to the team they're on in the active tournament
+  const activeTId = state.activeConfig?.tournamentId;
+  const activeTn = activeTId ? state.tournaments[activeTId] : null;
+  const playerTeam = {}; // fullName → {id, name, color}
+  if (activeTn) {
+    (activeTn.teams||[]).forEach(t => {
+      (t.players||[]).forEach(p => { playerTeam[p.name] = { id:t.id, name:t.name, color:t.color }; });
+    });
+  }
+
+  const roleBadge = (role) => {
+    const map = {
+      'allrounder': ['badge-gold','⭐ All-rounder'],
+      'batting-allrounder': ['badge-green','🏏 Batter (can bowl)'],
+      'specialist-batter': ['badge-green','🏏 Batter'],
+      'bowling-allrounder': ['badge-blue','⚾ Bowler (can bat)'],
+      'specialist-bowler': ['badge-blue','⚾ Bowler']
+    };
+    const [cls, label] = map[role] || ['badge-purple', role || 'Unspecified'];
+    return `<span class="badge ${cls}">${label}</span>`;
+  };
+
+  const assignedCount = Object.keys(playerTeam).length;
 
   el.innerHTML = `
     <div class="section-head">
-      <div><div class="section-title">Players</div><div class="section-sub">${players.length} registered</div></div>
+      <div><div class="section-title">Players</div><div class="section-sub">${players.length} registered${activeTn ? ` · ${assignedCount} assigned to teams` : ''}</div></div>
       <button class="btn btn-ghost" onclick="loadAll().then(()=>renderPage('players'))">↻ Refresh</button>
     </div>
-    ${!players.length ? `<div class="card"><div class="card-body" style="text-align:center;padding:24px;color:var(--dim)">No players registered yet.</div></div>` : `
+    ${!players.length ? `<div class="card"><div class="card-body" style="text-align:center;padding:24px;color:var(--dim)">No players registered yet. They'll appear here as people sign up on the main site.</div></div>` : `
     <div class="card">
       <table class="data-table">
-        <thead><tr><th>#</th><th>Name</th><th>Role</th><th>Batting Pref</th><th>Bowling Pref</th><th>Actions</th></tr></thead>
+        <thead><tr><th>#</th><th>Name</th><th>Role</th><th>Team</th><th>Actions</th></tr></thead>
         <tbody>
-          ${players.map((p, i) => `<tr>
+          ${players.map((p, i) => {
+            const tm = playerTeam[p.fullName];
+            return `<tr>
             <td style="font-family:var(--mono);color:var(--dim)">${i+1}</td>
             <td><strong>${esc(p.fullName)}</strong></td>
-            <td><span class="badge ${p.role==='both'?'badge-gold':p.role==='batting'?'badge-green':'badge-blue'}">${p.role||'?'}</span></td>
-            <td style="font-family:var(--mono);font-size:12px;color:var(--dim)">${esc(p.battingPref||'—')}</td>
-            <td style="font-family:var(--mono);font-size:12px;color:var(--dim)">${esc(p.bowlingPref||'—')}</td>
+            <td>${roleBadge(p.role)}</td>
+            <td>${tm
+              ? `<span class="team-chip" style="padding:3px 8px"><span class="team-dot" style="background:${tm.color||'#888'};width:8px;height:8px"></span>${esc(tm.name)}</span>`
+              : `<span style="font-family:var(--mono);font-size:11px;color:var(--dim)">— unassigned —</span>`}</td>
             <td class="actions">
               <button class="btn btn-red btn-xs" onclick="deletePlayer('${p.id}','${esc(p.fullName)}')">Delete</button>
             </td>
-          </tr>`).join('')}
+          </tr>`;
+          }).join('')}
         </tbody>
       </table>
     </div>`}
@@ -697,6 +867,32 @@ async function deletePlayer(id, name){
 function openModal(type, id){
   document.getElementById('modalBackdrop').classList.add('show');
   const body = document.getElementById('modalBody');
+
+  if(type === 'quickAutoSetup'){
+    const pc = state.players.length;
+    const suggested = pc >= 24 ? 4 : pc >= 6 ? 3 : 2;
+    body.innerHTML = `
+      <h3>⚡ Quick Auto-Setup</h3>
+      <p style="color:var(--dim);font-size:13px;margin-bottom:16px">This creates a season and tournament, then automatically distributes your <strong style="color:var(--cream)">${pc} registered players</strong> into balanced teams by role. You can fine-tune afterwards.</p>
+      <div class="form-row form-row-2">
+        <div class="fld"><label>Number of Teams</label>
+          <select id="qs_teamCount">
+            ${[2,3,4,6].map(n => `<option value="${n}" ${n===suggested?'selected':''}>${n} teams (~${Math.floor(pc/n)} players each)</option>`).join('')}
+          </select>
+        </div>
+        <div class="fld"><label>Overs per Innings</label>
+          <select id="qs_overs">
+            ${[5,6,8,10,12,15,20].map(o => `<option value="${o}" ${o===10?'selected':''}>${o} overs</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="fld" style="margin-bottom:14px"><label>Tournament Name</label><input type="text" id="qs_name" value="Tournament 1"></div>
+      <div class="modal-actions">
+        <button class="btn btn-gold" onclick="runQuickAutoSetup()">⚡ Create & Auto-Build</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      </div>`;
+    return;
+  }
 
   if(type === 'newSeason'){
     body.innerHTML = `
@@ -808,13 +1004,11 @@ function openModal(type, id){
       </div>`;
 
   } else if(type === 'newTeam'){
-    const activeTId = state.activeConfig?.tournamentId;
-    const tn = activeTId ? state.tournaments[activeTId] : null;
-    const existingIds = (tn?.teams||[]).map(t => t.id);
+    const existingIds = state.teams.map(t => t.id);
     const defaultId = ['A','B','C','D','E','F','G','H'].find(x => !existingIds.includes(x)) || 'X';
+    const nextColor = TEAM_PALETTE[state.teams.length % TEAM_PALETTE.length];
     body.innerHTML = `
       <h3>Add Team</h3>
-      ${!tn ? `<div class="form-msg err" style="display:block">No active tournament. Set one first.</div>` : `
       <div class="form-row form-row-2">
         <div class="fld"><label>Team Name</label><input type="text" id="mf_teamName" placeholder="e.g. Team Alpha"></div>
         <div class="fld"><label>Team ID (short, unique)</label><input type="text" id="mf_teamId" value="${defaultId}" maxlength="4" style="text-transform:uppercase"></div>
@@ -822,20 +1016,18 @@ function openModal(type, id){
       <div class="fld" style="margin-bottom:14px">
         <label>Team Colour</label>
         <div class="color-grid" id="colorGrid">
-          ${COLORS.map((c,i) => `<div class="color-swatch ${i===0?'sel':''}" style="background:${c}" data-color="${c}" onclick="selectColor(this)" title="${COLOR_NAMES[c]||c}"></div>`).join('')}
+          ${COLORS.map((c) => `<div class="color-swatch ${c===nextColor?'sel':''}" style="background:${c}" data-color="${c}" onclick="selectColor(this)" title="${COLOR_NAMES[c]||c}"></div>`).join('')}
         </div>
-        <input type="hidden" id="mf_teamColor" value="${COLORS[0]}">
+        <input type="hidden" id="mf_teamColor" value="${nextColor}">
       </div>
       <div id="mf_msg"></div>
       <div class="modal-actions">
         <button class="btn btn-gold" onclick="saveTeam()">Add Team</button>
         <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-      </div>`}`;
+      </div>`;
 
   } else if(type === 'editTeam'){
-    const activeTId = state.activeConfig?.tournamentId;
-    const tn = activeTId ? state.tournaments[activeTId] : null;
-    const team = tn?.teams?.find(t => t.id === id);
+    const team = state.teams.find(t => t.id === id);
     if(!team){ body.innerHTML='<div class="form-msg err" style="display:block">Team not found.</div><div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>'; return; }
     body.innerHTML = `
       <h3>Edit Team ${esc(id)}</h3>
@@ -857,20 +1049,18 @@ function openModal(type, id){
       </div>`;
 
   } else if(type === 'assignPlayers'){
-    const activeTId = state.activeConfig?.tournamentId;
-    const tn = activeTId ? state.tournaments[activeTId] : null;
-    const team = tn?.teams?.find(t => t.id === id);
+    const team = state.teams.find(t => t.id === id);
     if(!team) return;
 
-    // All players NOT already assigned to OTHER teams
+    // Players NOT already assigned to OTHER teams (this team's members stay selectable)
     const usedElsewhere = new Set();
-    tn.teams.forEach(t => { if(t.id !== id) t.players?.forEach(p => usedElsewhere.add(p.name)); });
+    state.teams.forEach(t => { if(t.id !== id) (t.players||[]).forEach(p => usedElsewhere.add(p.name)); });
     const available = state.players.filter(p => !usedElsewhere.has(p.fullName));
     const assigned = new Set((team.players||[]).map(p => p.name));
 
     body.innerHTML = `
       <h3>Assign Players → ${esc(team.name)}</h3>
-      <div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-bottom:12px">Click players to add/remove from this team. Players in other teams are hidden.</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-bottom:12px">Click players to add/remove from this team. Players already on other teams are hidden.</div>
       <div style="max-height:320px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:14px">
         ${!available.length ? `<div style="color:var(--dim);font-size:13px;text-align:center;padding:16px">No available players. All registered players are on other teams.</div>` :
         available.map(p => `
@@ -902,19 +1092,10 @@ function togglePlayerAssign(el, playerId, playerName, role){
     delete pendingAssignments[playerId];
   }
 }
-// Initialize pendingAssignments when modal opens
-function initPendingAssignments(teamId){
-  pendingAssignments = {};
-  const activeTId = state.activeConfig?.tournamentId;
-  const tn = activeTId ? state.tournaments[activeTId] : null;
-  const team = tn?.teams?.find(t => t.id === teamId);
-  (team?.players||[]).forEach(p => { pendingAssignments[p.id||p.name] = p; });
-}
 
 async function savePlayerAssignments(teamId){
-  const activeTId = state.activeConfig?.tournamentId;
-  const tn = state.tournaments[activeTId];
-  const team = tn.teams.find(t => t.id === teamId);
+  const team = state.teams.find(t => t.id === teamId);
+  if(!team) return;
 
   // Build player list from currently selected chips
   const selectedChips = document.querySelectorAll('.player-chip.selected');
@@ -922,14 +1103,13 @@ async function savePlayerAssignments(teamId){
   selectedChips.forEach(chip => {
     const pid = chip.id.replace('pc_', '');
     const p = state.players.find(x => x.id === pid);
-    if(p) players.push({ id: p.id, name: p.fullName, role: p.role||'both' });
+    if(p) players.push({ name: p.fullName, role: p.role||'both' });
   });
 
   team.players = players;
-  await saveDoc('tournaments', activeTId, { teams: tn.teams, updatedAt: Date.now() });
+  await persistTeams();
   closeModal();
   toast(`${players.length} players assigned to ${team.name}`);
-  await syncTeamsToScorer();
   renderAll();
 }
 
@@ -943,6 +1123,35 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ---- Save functions ----
+async function runQuickAutoSetup(){
+  const teamCount = parseInt(document.getElementById('qs_teamCount').value) || 3;
+  const overs = parseInt(document.getElementById('qs_overs').value) || 10;
+  const name = (document.getElementById('qs_name').value || 'Tournament 1').trim();
+  closeModal();
+
+  // 1. Build balanced teams from the registered players → canonical state.teams
+  state.teams = autoBuildTeams(teamCount);
+  await persistTeams();
+
+  // 2. Create a season + tournament that use these teams
+  const year = new Date().getFullYear();
+  let seasonId = Object.keys(state.seasons)[0];
+  if (!seasonId) {
+    seasonId = 's_' + Date.now();
+    const sData = { name: `Season 1 · ${year}`, year, status:'active', createdAt: Date.now(), updatedAt: Date.now() };
+    await saveDoc('seasons', seasonId, sData);
+    state.seasons[seasonId] = { id: seasonId, ...sData };
+  }
+  const tnId = 't_' + Date.now();
+  const tnData = { name, seasonId, overs, format:'Round Robin', status:'active', createdAt: Date.now(), updatedAt: Date.now() };
+  await saveDoc('tournaments', tnId, tnData);
+  state.tournaments[tnId] = { id: tnId, ...tnData };
+  await activateTournament(tnId);
+
+  toast(`${teamCount} teams built · tournament ready ✓`);
+  showPage('teams');
+}
+
 async function saveSeason(existingId){
   const name = document.getElementById('mf_sName')?.value?.trim();
   const year = document.getElementById('mf_sYear')?.value;
@@ -971,7 +1180,7 @@ async function saveTournament(existingId){
   if(!name){ showModalMsg('Tournament name is required', 'err'); return; }
 
   const data = { name, overs, format, status, seasonId: existingId ? state.tournaments[existingId].seasonId : seasonId, updatedAt: Date.now() };
-  if(!existingId){ data.createdAt = Date.now(); data.teams = []; }
+  if(!existingId){ data.createdAt = Date.now(); }
 
   const id = existingId || 't_' + Date.now();
   await saveDoc('tournaments', id, data);
@@ -985,28 +1194,24 @@ async function saveTournament(existingId){
 
 async function saveTeam(existingId){
   const name = document.getElementById('mf_teamName')?.value?.trim();
-  const color = document.getElementById('mf_teamColor')?.value || COLORS[0];
+  const color = document.getElementById('mf_teamColor')?.value || TEAM_PALETTE[0];
   const rawId = (document.getElementById('mf_teamId')?.value||'').trim().toUpperCase().slice(0,4);
   if(!name){ showModalMsg('Team name is required', 'err'); return; }
 
-  const activeTId = state.activeConfig?.tournamentId;
-  const tn = activeTId ? state.tournaments[activeTId] : null;
-  if(!tn){ showModalMsg('No active tournament', 'err'); return; }
-
   if(existingId){
-    const team = tn.teams.find(t => t.id === existingId);
+    const team = state.teams.find(t => t.id === existingId);
     if(team){ team.name = name; team.color = color; }
   } else {
-    const teamId = rawId || 'T' + ((tn.teams||[]).length + 1);
-    if((tn.teams||[]).some(t => t.id === teamId)){ showModalMsg(`Team ID "${teamId}" already exists`, 'err'); return; }
-    tn.teams = tn.teams || [];
-    tn.teams.push({ id: teamId, name, color, players: [] });
+    // Auto-pick next available letter ID if none given
+    const used = state.teams.map(t => t.id);
+    const teamId = rawId || ['A','B','C','D','E','F','G','H'].find(x => !used.includes(x)) || ('T' + (state.teams.length + 1));
+    if(used.includes(teamId)){ showModalMsg(`Team ID "${teamId}" already exists`, 'err'); return; }
+    state.teams.push({ id: teamId, name, color, players: [] });
   }
 
-  await saveDoc('tournaments', activeTId, { teams: tn.teams, updatedAt: Date.now() });
+  await persistTeams();
   closeModal();
   toast(existingId ? 'Team updated' : `Team "${name}" added`);
-  await syncTeamsToScorer();
   renderAll();
 }
 
@@ -1054,11 +1259,9 @@ window.openModal = function(type, id){
   if(type === 'assignPlayers') pendingAssignments = {};
   _origOpenModal(type, id);
   if(type === 'assignPlayers' && id){
-    // Pre-populate from current team
-    const activeTId = state.activeConfig?.tournamentId;
-    const tn = activeTId ? state.tournaments[activeTId] : null;
-    const team = tn?.teams?.find(t => t.id === id);
-    (team?.players||[]).forEach(p => { pendingAssignments[p.id||p.name] = p; });
+    // Pre-populate from the canonical team
+    const team = state.teams.find(t => t.id === id);
+    (team?.players||[]).forEach(p => { pendingAssignments[p.name] = p; });
   }
 };
 </script>

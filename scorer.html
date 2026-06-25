@@ -459,15 +459,74 @@ select option{background:#0e2418;color:var(--cream);}
 // =============================================================
 
 const PWD = '22';
-const SCHED = [
-  {id:'AxB',label:'Match 1',tA:'A',tB:'B'},
-  {id:'AxC',label:'Match 2',tA:'A',tB:'C'},
-  {id:'BxC',label:'Match 3',tA:'C',tB:'B'},
-  {id:'final',label:'Final',tA:null,tB:null}
-];
-const TCOLORS = {A:'#c8392f',B:'#2f6fb0',C:'#3f8f5c'};
+let SCHED = []; // Built dynamically from active tournament teams
+let TCOLORS = {}; // Built from team colours in active tournament
+let TNAMES = {}; // Team display names from tournament/meta
+let activeTournamentName = 'Season 1 T1'; // Updated from config/active
 
-// ------------------------------------------------------------------
+// Generate round-robin schedule + final from a list of team IDs
+function buildSchedule(teamIds) {
+  const matches = [];
+  let num = 1;
+  for (let i = 0; i < teamIds.length; i++) {
+    for (let j = i + 1; j < teamIds.length; j++) {
+      const tA = teamIds[i], tB = teamIds[j];
+      matches.push({ id: `${tA}x${tB}`, label: `Match ${num++}`, tA, tB });
+    }
+  }
+  matches.push({ id: 'final', label: 'Final', tA: null, tB: null });
+  return matches;
+}
+
+async function loadData(){
+  try{
+    // Read active config first to get tournament name
+    const configSnap = await FM.getDoc(FM.doc(DB,'config','active'));
+    if (configSnap.exists()) {
+      const cfg = configSnap.data();
+      activeTournamentName = [cfg.seasonName, cfg.tournamentName].filter(Boolean).join(' · ') || 'Live Tournament';
+      // Update header subtitle
+      const hsubeEl = document.querySelector('.hsub');
+      if (hsubeEl) hsubeEl.textContent = activeTournamentName;
+    }
+
+    // Load teams from tournament/teams (written by admin panel)
+    const ts = await FM.getDoc(FM.doc(DB,'tournament','teams'));
+    if(ts.exists()){
+      const td = ts.data().teams;
+      const teamIds = Object.keys(td).sort();
+      teamIds.forEach(k => {
+        rosters[k] = td[k].map(p=>({id:p.fullName, name:p.fullName}));
+      });
+      SCHED = buildSchedule(teamIds);
+      // Get team colours + names from tournament/meta (admin panel writes this)
+      try {
+        const metaSnap = await FM.getDoc(FM.doc(DB,'tournament','meta'));
+        if (metaSnap.exists()) {
+          const meta = metaSnap.data().teams || {};
+          Object.keys(meta).forEach(k => {
+            if (meta[k].color) TCOLORS[k] = meta[k].color;
+            if (meta[k].name) TNAMES[k] = meta[k].name;
+          });
+        }
+      } catch(e) { /* colours optional */ }
+      // Fallback colours
+      const defaultColors = ['#c8392f','#2f6fb0','#3f8f5c','#e3a857','#7c5cbf','#2a9d8f'];
+      teamIds.forEach((k,i) => { if(!TCOLORS[k]) TCOLORS[k] = defaultColors[i % defaultColors.length]; });
+    } else {
+      notice('No teams set up yet. Go to ⚙️ Admin to create a tournament and assign teams.');
+    }
+
+    // Try to resume previous match
+    const ls = await FM.getDoc(FM.doc(DB,'s1t1_live','current'));
+    if(ls.exists() && ls.data().state){
+      if(confirm('Resume previous match in progress?')){
+        S = ls.data().state; resumeMatch(); return;
+      }
+    }
+  } catch(e){ console.warn('loadData err',e); }
+  startSetup();
+}
 // AUTH
 // ------------------------------------------------------------------
 function doAuth(){
@@ -526,26 +585,6 @@ window.addEventListener('fb-ready', ()=>{
   if(window.__fbOK && window.__db){ DB=window.__db; FM=window.__fm; loadData(); }
   else { notice('Firebase offline — scores will not be saved.'); startSetup(); }
 });
-
-async function loadData(){
-  try{
-    const ts = await FM.getDoc(FM.doc(DB,'tournament','teams'));
-    if(ts.exists()){
-      const td = ts.data().teams;
-      Object.keys(td).forEach(k=>{
-        rosters[k] = td[k].map(p=>({id:p.fullName, name:p.fullName}));
-      });
-    } else { notice('No teams generated yet. Generate teams from the main site first.'); }
-    // try to resume
-    const ls = await FM.getDoc(FM.doc(DB,'s1t1_live','current'));
-    if(ls.exists() && ls.data().state){
-      if(confirm('Resume previous match in progress?')){
-        S = ls.data().state; resumeMatch(); return;
-      }
-    }
-  } catch(e){ console.warn('loadData err',e); }
-  startSetup();
-}
 
 async function fsSave(){
   if(!DB) return;
