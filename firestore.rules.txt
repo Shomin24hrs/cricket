@@ -1,20 +1,12 @@
 // ============================================================
 // FIRESTORE SECURITY RULES — KSCY Tournament App
+// Updated to cover admin panel collections
 // ============================================================
 // HOW TO APPLY:
-// 1. Firebase console → your project → Build → Firestore Database
+// 1. Firebase console → Build → Firestore Database
 // 2. Click the "Rules" tab
 // 3. Replace everything with the rules below
 // 4. Click "Publish"
-// ============================================================
-//
-// Collections covered:
-//   players         — registrations (public read, create-once)
-//   tournament      — generated teams (public read/write, password in UI)
-//   s1t1_matches    — match results for points table (public read/write)
-//   s1t1_live       — live scorer state (public read, write from scorer UI)
-//   s1t1_scorecards — completed match scorecards (public read/write)
-//
 // ============================================================
 
 rules_version = '2';
@@ -22,50 +14,51 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Players — anyone can read, create once; no edits or deletes
+    // Players — public read, create-once with validation
     match /players/{playerId} {
       allow read: if true;
-      allow create: if request.resource.data.keys().hasAll(['firstName', 'lastName', 'fullName', 'role'])
+      allow create: if request.resource.data.keys().hasAll(['firstName','lastName','fullName','role'])
                     && request.resource.data.firstName is string
-                    && request.resource.data.lastName is string
-                    && request.resource.data.firstName.size() > 0
-                    && request.resource.data.lastName.size() > 0;
-      allow update, delete: if false;
+                    && request.resource.data.firstName.size() > 0;
+      allow update, delete: if true; // admin panel can delete players
     }
 
-    // Tournament — generated teams; password-gated in UI
+    // Tournament teams (used by scorer)
     match /tournament/{docId} {
       allow read: if true;
       allow write: if true;
     }
 
-    // Match results — written by Match Centre admin and scorer;
-    // read by all visitors for the live points table
+    // Admin panel — seasons, tournaments, config
+    match /seasons/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /tournaments/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Match data — all public read/write (password-gated in UI)
     match /s1t1_matches/{matchId} {
       allow read: if true;
       allow write: if true;
     }
 
-    // Live scorer state — written by scorer.html after every ball;
-    // read by index.html for the live public scorecard
     match /s1t1_live/{docId} {
       allow read: if true;
       allow write: if true;
     }
 
-    // Completed match scorecards — written on match completion
     match /s1t1_scorecards/{matchId} {
       allow read: if true;
       allow write: if true;
     }
   }
 }
-
-// ============================================================
-// NOTE ON SECURITY
-// ============================================================
-// All writes are currently open (gated only by in-app passwords,
-// not Firestore rules). For a private club tournament this is fine.
-// If you want stronger protection, see the note in the original
-// firestore.rules.txt about using Firebase Auth + Cloud Functions.
-// ============================================================

@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KSCY Admin Panel</title>
+
+<script type="module">
+  const FC = {
+    apiKey:"AIzaSyBpVpwgtwXMQGkC_90QqapunT5vb7xngss",
+    authDomain:"kerala-sports-club-yukon.firebaseapp.com",
+    projectId:"kerala-sports-club-yukon",
+    storageBucket:"kerala-sports-club-yukon.firebasestorage.app",
+    messagingSenderId:"264568513889",
+    appId:"1:264568513889:web:45b8800694aa80b6369120"
+  };
+  function race(p,ms){ return Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('TO')),ms))]); }
+  async function go(){
+    try{
+      const {initializeApp}=await race(import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"),7000);
+      const fm=await race(import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"),7000);
+      const app=initializeApp(FC);
+      window.__db=fm.getFirestore(app); window.__fm=fm; window.__fbOK=true;
+    }catch(e){ console.error('FB fail',e); window.__fbOK=false; }
+    window.__fbDone=true; window.dispatchEvent(new Event('fb-ready'));
+  }
+  go();
+  setTimeout(()=>{ if(!window.__fbDone){window.__fbOK=false;window.__fbDone=true;window.dispatchEvent(new Event('fb-ready'));} },9000);
+</script>
+
+<style>
+:root{
+  --bg:#0a1a14; --bg2:#0e2418; --bg3:#122b1c;
+  --cream:#f3ead9; --dim:#a89b84;
+  --gold:#e3a857; --gold2:#c98a3c;
+  --green:#3f8f5c; --green2:#5fd38a;
+  --red:#c8392f; --red2:#ff8f86;
+  --blue:#2f6fb0; --blue2:#4a9fd4;
+  --purple:#7c5cbf; --purple2:#c8a0f0;
+  --line:rgba(243,234,217,0.12);
+  --mono:'Roboto Mono',monospace;
+  --disp:'Big Shoulders Display','Arial Narrow',sans-serif;
+  --body:'Source Sans Pro','Segoe UI',sans-serif;
+}
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Source+Sans+Pro:wght@400;600;700&family=Roboto+Mono:wght@400;500;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;background:var(--bg);color:var(--cream);font-family:var(--body);font-size:15px;}
+button{font-family:var(--body);cursor:pointer;border:none;transition:all .12s;}
+input,select,textarea{font-family:var(--body);}
+
+/* AUTH */
+#authWrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 40% 30%,rgba(63,143,92,.08),transparent 60%),var(--bg);}
+.auth-box{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:40px;width:360px;text-align:center;}
+.auth-box h1{font-family:var(--disp);font-size:26px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;margin-bottom:6px;}
+.auth-box p{color:var(--dim);font-size:13px;margin-bottom:24px;}
+.auth-msg{color:var(--red2);font-size:13px;margin-bottom:10px;min-height:18px;}
+
+/* LAYOUT */
+#adminWrap{display:none;min-height:100vh;flex-direction:column;}
+#adminWrap.on{display:flex;}
+#topbar{
+  background:var(--bg2);border-bottom:1px solid var(--line);padding:14px 24px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  position:sticky;top:0;z-index:50;
+}
+.topbar-title{font-family:var(--disp);font-size:20px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;}
+.topbar-sub{font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:.12em;text-transform:uppercase;margin-top:2px;}
+#adminBody{display:grid;grid-template-columns:220px 1fr;flex:1;}
+#sidebar{background:var(--bg2);border-right:1px solid var(--line);padding:16px 0;min-height:calc(100vh - 60px);}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;
+  color:var(--dim);transition:all .12s;border-left:3px solid transparent;
+}
+.nav-item:hover{background:rgba(255,255,255,.04);color:var(--cream);}
+.nav-item.active{color:var(--gold);border-left-color:var(--gold);background:rgba(227,168,87,.06);}
+.nav-icon{font-size:18px;width:24px;text-align:center;}
+.nav-divider{height:1px;background:var(--line);margin:10px 16px;}
+#mainPanel{padding:24px;overflow-y:auto;}
+
+/* CARDS / SECTIONS */
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+.section-title{font-family:var(--disp);font-size:22px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;}
+.section-sub{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;margin-top:4px;}
+.card{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:16px;}
+.card-head{padding:12px 16px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);display:flex;justify-content:space-between;align-items:center;}
+.card-body{padding:16px;}
+
+/* BUTTONS */
+.btn{font-family:var(--disp);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:13px;padding:9px 18px;border-radius:6px;cursor:pointer;}
+.btn-gold{background:linear-gradient(180deg,var(--gold),var(--gold2));color:#142019;box-shadow:0 2px 0 #7a5010;}
+.btn-gold:hover{transform:translateY(-1px);}
+.btn-red{background:linear-gradient(180deg,var(--red),#8a1a14);color:var(--cream);box-shadow:0 2px 0 #5a0e0a;}
+.btn-green{background:linear-gradient(180deg,var(--green),#2a6040);color:var(--cream);box-shadow:0 2px 0 #1a3a28;}
+.btn-blue{background:linear-gradient(180deg,var(--blue),#1a4a80);color:var(--cream);box-shadow:0 2px 0 #0a2a50;}
+.btn-ghost{background:transparent;color:var(--cream);border:1px solid var(--line);font-size:13px;}
+.btn-ghost:hover{background:rgba(255,255,255,.06);}
+.btn-sm{padding:6px 12px;font-size:11px;}
+.btn-xs{padding:4px 8px;font-size:10px;border-radius:4px;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-full{width:100%;}
+
+/* FORM */
+.form-row{display:grid;gap:12px;margin-bottom:14px;}
+.form-row-2{grid-template-columns:1fr 1fr;}
+.form-row-3{grid-template-columns:1fr 1fr 1fr;}
+.fld label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;}
+.fld input,.fld select,.fld textarea{
+  width:100%;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:7px;
+  padding:10px 12px;color:var(--cream);font-size:14px;
+}
+.fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--gold);}
+.fld select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23f3ead9' opacity='.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;}
+.fld select option{background:#0e2418;}
+.fld textarea{min-height:80px;resize:vertical;}
+.form-msg{font-size:12px;padding:8px 12px;border-radius:6px;margin-top:8px;display:none;}
+.form-msg.ok{background:rgba(63,143,92,.15);color:#7fe3a4;border:1px solid rgba(63,143,92,.3);display:block;}
+.form-msg.err{background:rgba(200,57,47,.15);color:#ff8f86;border:1px solid rgba(200,57,47,.3);display:block;}
+
+/* TABLES */
+.data-table{width:100%;border-collapse:collapse;font-size:13.5px;}
+.data-table th{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);padding:10px 12px;text-align:left;border-bottom:2px solid rgba(227,168,87,.2);}
+.data-table td{padding:12px 12px;border-bottom:1px solid rgba(243,234,217,.06);vertical-align:middle;}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:rgba(255,255,255,.02);}
+.data-table .actions{display:flex;gap:6px;align-items:center;}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;}
+.badge-green{background:rgba(63,143,92,.2);color:#7fe3a4;border:1px solid rgba(63,143,92,.35);}
+.badge-gold{background:rgba(227,168,87,.2);color:var(--gold);border:1px solid rgba(227,168,87,.35);}
+.badge-red{background:rgba(200,57,47,.18);color:#ff8f86;border:1px solid rgba(200,57,47,.3);}
+.badge-blue{background:rgba(47,111,176,.2);color:#8ec4f5;border:1px solid rgba(47,111,176,.3);}
+.badge-purple{background:rgba(124,92,191,.2);color:var(--purple2);border:1px solid rgba(124,92,191,.3);}
+
+/* TEAM CHIPS */
+.team-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;font-size:13px;font-weight:600;background:rgba(255,255,255,.05);border:1px solid var(--line);}
+.team-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+
+/* PLAYER LIST */
+.player-chip{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:4px;
+  font-size:12px;background:rgba(255,255,255,.05);border:1px solid var(--line);margin:3px;cursor:pointer;
+}
+.player-chip.selected{background:rgba(63,143,92,.2);border-color:rgba(63,143,92,.4);color:#7fe3a4;}
+.player-chip .chip-remove{font-size:10px;color:var(--dim);margin-left:2px;cursor:pointer;}
+.player-chip .chip-remove:hover{color:var(--red2);}
+
+/* ACTIVE PILL */
+.active-pill{display:inline-block;background:rgba(63,143,92,.25);color:#7fe3a4;font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid rgba(63,143,92,.4);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.6;}}
+
+/* MODAL */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:none;align-items:center;justify-content:center;}
+.modal-backdrop.show{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:24px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;}
+.modal h3{font-family:var(--disp);font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;margin-bottom:14px;}
+.modal-actions{display:flex;gap:10px;margin-top:16px;}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;right:24px;z-index:999;font-family:var(--mono);font-size:13px;padding:12px 18px;border-radius:8px;display:none;max-width:340px;}
+#toast.ok{background:rgba(63,143,92,.9);color:var(--cream);border:1px solid rgba(63,143,92,.6);}
+#toast.err{background:rgba(200,57,47,.9);color:var(--cream);border:1px solid rgba(200,57,47,.6);}
+
+/* STATS ROW */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px;}
+.stat-cell{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;padding:14px;text-align:center;}
+.stat-val{font-family:var(--disp);font-size:28px;font-weight:900;}
+.stat-lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-top:4px;}
+
+/* COLOR PICKER */
+.color-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.color-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .12s;}
+.color-swatch.sel{border-color:var(--cream);transform:scale(1.15);}
+
+@media(max-width:700px){
+  #adminBody{grid-template-columns:1fr;}
+  #sidebar{min-height:auto;display:flex;overflow-x:auto;padding:8px;}
+  .nav-item{flex-direction:column;gap:4px;font-size:11px;padding:8px 12px;white-space:nowrap;border-left:none;border-bottom:3px solid transparent;}
+  .nav-item.active{border-left:none;border-bottom-color:var(--gold);}
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="authWrap">
+  <div class="auth-box">
+    <div style="font-size:40px;margin-bottom:12px">⚙️</div>
+    <h1>KSCY Admin</h1>
+    <p>Tournament management panel</p>
+    <input type="password" id="authPwd" placeholder="Password" onkeydown="if(event.key==='Enter')doAuth()">
+    <div class="auth-msg" id="authMsg"></div>
+    <button class="btn btn-gold btn-full" onclick="doAuth()">Enter Admin Panel</button>
+    <div style="margin-top:16px"><a href="index.html" style="color:var(--dim);font-size:12px;font-family:var(--mono)">← Back to main site</a></div>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminWrap">
+  <div id="topbar">
+    <div>
+      <div class="topbar-title">⚙️ KSCY Admin</div>
+      <div class="topbar-sub">Tournament Management</div>
+    </div>
+    <div id="activePill" style="font-family:var(--mono);font-size:12px;color:var(--dim)">Loading…</div>
+    <div style="display:flex;gap:8px">
+      <a href="index.html" class="btn btn-ghost btn" style="text-decoration:none;font-size:12px">← Main Site</a>
+      <a href="scorer.html" class="btn btn-gold btn" style="text-decoration:none;font-size:12px">🏏 Scorer</a>
+    </div>
+  </div>
+
+  <div id="adminBody">
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+      <div class="nav-item active" onclick="showPage('overview')"><span class="nav-icon">🏠</span>Overview</div>
+      <div class="nav-item" onclick="showPage('seasons')"><span class="nav-icon">📅</span>Seasons</div>
+      <div class="nav-item" onclick="showPage('tournaments')"><span class="nav-icon">🏆</span>Tournaments</div>
+      <div class="nav-item" onclick="showPage('teams')"><span class="nav-icon">👥</span>Teams</div>
+      <div class="nav-divider"></div>
+      <div class="nav-item" onclick="showPage('players')"><span class="nav-icon">🏏</span>Players</div>
+    </div>
+
+    <!-- MAIN PANEL -->
+    <div id="mainPanel">
+      <div id="pageOverview"></div>
+      <div id="pageSeasons" style="display:none"></div>
+      <div id="pageTournaments" style="display:none"></div>
+      <div id="pageTeams" style="display:none"></div>
+      <div id="pagePlayers" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modalContent">
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ==============================================================
+// KSCY ADMIN PANEL
+// Manages: seasons, tournaments, teams, players
+// ==============================================================
+
+const PWD = '22';
+const COLORS = ['#c8392f','#2f6fb0','#3f8f5c','#e3a857','#7c5cbf','#2a9d8f','#e76f51','#264653','#f4a261','#a8dadc'];
+const COLOR_NAMES = {'#c8392f':'Red','#2f6fb0':'Blue','#3f8f5c':'Green','#e3a857':'Gold','#7c5cbf':'Purple','#2a9d8f':'Teal','#e76f51':'Orange','#264653':'Navy','#f4a261':'Sand','#a8dadc':'Sky'};
+
+let DB = null, FM = null;
+let state = {
+  seasons: {},      // id → data
+  tournaments: {},  // id → data
+  players: [],      // array of player docs
+  activeConfig: null // { seasonId, tournamentId, seasonName, tournamentName }
+};
+
+// ---- Auth ----
+function doAuth(){
+  if(document.getElementById('authPwd').value === PWD){
+    document.getElementById('authWrap').style.display = 'none';
+    document.getElementById('adminWrap').classList.add('on');
+    initAdmin();
+  } else {
+    document.getElementById('authMsg').textContent = 'Incorrect password.';
+  }
+}
+
+// ---- Firebase ----
+window.addEventListener('fb-ready', () => {
+  if(window.__fbOK && window.__db){ DB = window.__db; FM = window.__fm; loadAll(); }
+  else { toast('Firebase offline — changes will not be saved', 'err'); renderAll(); }
+});
+
+async function loadAll(){
+  try{
+    const [seasonsSnap, tournsSnap, playersSnap, configSnap] = await Promise.all([
+      FM.getDocs(FM.collection(DB, 'seasons')),
+      FM.getDocs(FM.collection(DB, 'tournaments')),
+      FM.getDocs(FM.query(FM.collection(DB, 'players'), FM.orderBy('createdAtLocal','asc'))),
+      FM.getDoc(FM.doc(DB, 'config', 'active'))
+    ]);
+    state.seasons = {};
+    seasonsSnap.docs.forEach(d => { state.seasons[d.id] = { id: d.id, ...d.data() }; });
+    state.tournaments = {};
+    tournsSnap.docs.forEach(d => { state.tournaments[d.id] = { id: d.id, ...d.data() }; });
+    state.players = playersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    state.activeConfig = configSnap.exists() ? configSnap.data() : null;
+  } catch(e){ console.warn('loadAll error', e); }
+  renderAll();
+}
+
+async function saveDoc(collection, id, data){
+  if(!DB) return false;
+  try{
+    if(id) await FM.setDoc(FM.doc(DB, collection, id), data, { merge: true });
+    else { const ref = await FM.addDoc(FM.collection(DB, collection), data); return ref.id; }
+    return true;
+  } catch(e){ console.warn('saveDoc error', e); return false; }
+}
+
+async function deleteDoc(collection, id){
+  if(!DB) return false;
+  try{ await FM.deleteDoc(FM.doc(DB, collection, id)); return true; }
+  catch(e){ console.warn('deleteDoc error', e); return false; }
+}
+
+// ---- Navigation ----
+let currentPage = 'overview';
+function showPage(page){
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const items = document.querySelectorAll('.nav-item');
+  const pageMap = {overview:0,seasons:1,tournaments:2,teams:3,players:5};
+  if(pageMap[page] !== undefined) items[pageMap[page]]?.classList.add('active');
+  ['Overview','Seasons','Tournaments','Teams','Players'].forEach(p => {
+    document.getElementById('page'+p).style.display = 'none';
+  });
+  document.getElementById('page'+page.charAt(0).toUpperCase()+page.slice(1)).style.display = 'block';
+  renderPage(page);
+}
+
+function renderAll(){
+  updateTopBar();
+  renderPage(currentPage);
+}
+
+function updateTopBar(){
+  const el = document.getElementById('activePill');
+  if(state.activeConfig && state.activeConfig.seasonName){
+    el.innerHTML = `<span style="color:var(--dim)">Active: </span><span style="color:var(--gold);font-weight:600">${esc(state.activeConfig.seasonName)}</span> › <span style="color:var(--cream)">${esc(state.activeConfig.tournamentName||'—')}</span>`;
+  } else {
+    el.innerHTML = `<span style="color:var(--dim)">No active tournament set</span>`;
+  }
+}
+
+function renderPage(page){
+  if(page === 'overview') renderOverview();
+  else if(page === 'seasons') renderSeasons();
+  else if(page === 'tournaments') renderTournaments();
+  else if(page === 'teams') renderTeams();
+  else if(page === 'players') renderPlayers();
+}
+
+// ==============================================================
+// OVERVIEW
+// ==============================================================
+function renderOverview(){
+  const el = document.getElementById('pageOverview');
+  const seasons = Object.values(state.seasons);
+  const tournaments = Object.values(state.tournaments);
+  const activeTId = state.activeConfig?.tournamentId;
+  const activeTn = activeTId ? state.tournaments[activeTId] : null;
+
+  el.innerHTML = `
+    <div class="section-head">
+      <div><div class="section-title">Overview</div><div class="section-sub">KSCY Tournament Management</div></div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-cell"><div class="stat-val">${seasons.length}</div><div class="stat-lbl">Seasons</div></div>
+      <div class="stat-cell"><div class="stat-val">${tournaments.length}</div><div class="stat-lbl">Tournaments</div></div>
+      <div class="stat-cell"><div class="stat-val">${state.players.length}</div><div class="stat-lbl">Players</div></div>
+      <div class="stat-cell"><div class="stat-val">${activeTn ? (activeTn.teams||[]).length : '—'}</div><div class="stat-lbl">Teams (Active)</div></div>
+    </div>
+
+    ${activeTn ? `
+    <div class="card">
+      <div class="card-head">🟢 Active Tournament <span class="active-pill">LIVE</span></div>
+      <div class="card-body">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px">
+          <div>
+            <div style="font-family:var(--disp);font-size:20px;font-weight:800">${esc(activeTn.name)}</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:3px">
+              ${esc(state.seasons[activeTn.seasonId]?.name||'?')} · ${activeTn.overs||10} overs · ${(activeTn.teams||[]).length} teams
+            </div>
+          </div>
+          <div style="margin-left:auto;display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="showPage('teams')">Manage Teams</button>
+            <button class="btn btn-gold btn-sm" onclick="showPage('tournaments')">View All</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${(activeTn.teams||[]).map(t => `
+            <div class="team-chip">
+              <div class="team-dot" style="background:${t.color||'#888'}"></div>
+              <span>${esc(t.name)}</span>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--dim)">${t.players?.length||0}p</span>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>` : `
+    <div class="card">
+      <div class="card-body" style="text-align:center;padding:30px">
+        <div style="font-size:40px;margin-bottom:12px">⚙️</div>
+        <div style="font-weight:600;font-size:16px;margin-bottom:8px">No active tournament</div>
+        <div style="color:var(--dim);font-size:13px;margin-bottom:16px">Create a season and tournament to get started.</div>
+        <button class="btn btn-gold" onclick="showPage('seasons')">Create First Season</button>
+      </div>
+    </div>`}
+
+    <div class="card">
+      <div class="card-head">Quick Actions</div>
+      <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-gold btn-sm" onclick="openModal('newSeason')">+ New Season</button>
+        <button class="btn btn-blue btn-sm" onclick="openModal('newTournament')">+ New Tournament</button>
+        <button class="btn btn-green btn-sm" onclick="openModal('newTeam')">+ Add Team</button>
+        <a href="scorer.html" class="btn btn-ghost btn-sm" style="text-decoration:none">🏏 Open Scorer</a>
+        <a href="index.html" class="btn btn-ghost btn-sm" style="text-decoration:none">🌐 View Site</a>
+      </div>
+    </div>
+  `;
+}
+
+// ==============================================================
+// SEASONS
+// ==============================================================
+function renderSeasons(){
+  const el = document.getElementById('pageSeasons');
+  const seasons = Object.values(state.seasons).sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+  const activeId = state.activeConfig?.seasonId;
+
+  el.innerHTML = `
+    <div class="section-head">
+      <div><div class="section-title">Seasons</div><div class="section-sub">Manage tournament seasons</div></div>
+      <button class="btn btn-gold" onclick="openModal('newSeason')">+ New Season</button>
+    </div>
+
+    ${!seasons.length ? `<div class="card"><div class="card-body" style="text-align:center;padding:24px;color:var(--dim)">No seasons yet. Create the first one!</div></div>` : `
+    <div class="card">
+      <table class="data-table">
+        <thead><tr><th>Name</th><th>Status</th><th>Tournaments</th><th>Created</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${seasons.map(s => {
+            const isActive = s.id === activeId;
+            const tnCount = Object.values(state.tournaments).filter(t => t.seasonId === s.id).length;
+            const date = s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '—';
+            return `<tr>
+              <td>
+                <strong>${esc(s.name)}</strong>
+                ${isActive ? `<span class="active-pill" style="margin-left:8px">Active</span>` : ''}
+              </td>
+              <td><span class="badge ${s.status==='active'?'badge-green':s.status==='archived'?'badge-red':'badge-gold'}">${s.status||'draft'}</span></td>
+              <td>${tnCount} tournament${tnCount!==1?'s':''}</td>
+              <td style="font-family:var(--mono);font-size:12px;color:var(--dim)">${date}</td>
+              <td class="actions">
+                <button class="btn btn-ghost btn-xs" onclick="openModal('editSeason','${s.id}')">Edit</button>
+                ${!isActive ? `<button class="btn btn-green btn-xs" onclick="setActiveSeason('${s.id}')">Set Active</button>` : ''}
+                ${!isActive ? `<button class="btn btn-red btn-xs" onclick="confirmDelete('season','${s.id}','${esc(s.name)}')">Delete</button>` : ''}
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`}
+  `;
+}
+
+async function setActiveSeason(seasonId){
+  const s = state.seasons[seasonId];
+  if(!s) return;
+  // Find the latest tournament in this season
+  const tns = Object.values(state.tournaments).filter(t => t.seasonId === seasonId);
+  const latestTn = tns.sort((a,b) => (b.createdAt||0) - (a.createdAt||0))[0];
+  const config = {
+    seasonId, seasonName: s.name,
+    tournamentId: latestTn?.id || null,
+    tournamentName: latestTn?.name || null,
+    updatedAt: Date.now()
+  };
+  state.activeConfig = config;
+  await saveDoc('config', 'active', config);
+  toast(`${s.name} is now the active season`);
+  renderAll();
+}
+
+// ==============================================================
+// TOURNAMENTS
+// ==============================================================
+function renderTournaments(){
+  const el = document.getElementById('pageTournaments');
+  const seasons = Object.values(state.seasons).sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+  const tournaments = Object.values(state.tournaments).sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+  const activeTId = state.activeConfig?.tournamentId;
+
+  el.innerHTML = `
+    <div class="section-head">
+      <div><div class="section-title">Tournaments</div><div class="section-sub">Manage tournaments within seasons</div></div>
+      <button class="btn btn-gold" onclick="openModal('newTournament')">+ New Tournament</button>
+    </div>
+
+    ${!tournaments.length ? `<div class="card"><div class="card-body" style="text-align:center;padding:24px;color:var(--dim)">No tournaments yet. Create a season first, then add a tournament.</div></div>` :
+    seasons.map(s => {
+      const sTns = tournaments.filter(t => t.seasonId === s.id);
+      if(!sTns.length) return '';
+      return `
+        <div style="margin-bottom:8px">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:10px">${esc(s.name)}</div>
+          <div class="card">
+            <table class="data-table">
+              <thead><tr><th>Tournament</th><th>Format</th><th>Teams</th><th>Overs</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody>
+                ${sTns.map(t => {
+                  const isActive = t.id === activeTId;
+                  const teamCount = (t.teams||[]).length;
+                  return `<tr>
+                    <td>
+                      <strong>${esc(t.name)}</strong>
+                      ${isActive ? `<span class="active-pill" style="margin-left:8px">Active</span>` : ''}
+                    </td>
+                    <td style="font-family:var(--mono);font-size:12px">${t.format||'Round Robin'}</td>
+                    <td>${teamCount} team${teamCount!==1?'s':''}</td>
+                    <td style="font-family:var(--mono)">${t.overs||10}</td>
+                    <td><span class="badge ${t.status==='active'?'badge-green':t.status==='completed'?'badge-blue':'badge-gold'}">${t.status||'active'}</span></td>
+                    <td class="actions">
+                      <button class="btn btn-ghost btn-xs" onclick="openModal('editTournament','${t.id}')">Edit</button>
+                      ${!isActive ? `<button class="btn btn-green btn-xs" onclick="setActiveTournament('${t.id}')">Set Active</button>` : ''}
+                      <button class="btn btn-blue btn-xs" onclick="showPage('teams')">Teams</button>
+                      ${!isActive ? `<button class="btn btn-red btn-xs" onclick="confirmDelete('tournament','${t.id}','${esc(t.name)}')">Delete</button>` : ''}
+                    </td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+    }).join('')}
+  `;
+}
+
+async function setActiveTournament(tnId){
+  const tn = state.tournaments[tnId];
+  if(!tn) return;
+  const s = state.seasons[tn.seasonId];
+  const config = {
+    seasonId: tn.seasonId, seasonName: s?.name || '?',
+    tournamentId: tnId, tournamentName: tn.name,
+    updatedAt: Date.now()
+  };
+  state.activeConfig = config;
+  await saveDoc('config', 'active', config);
+
+  // Also update tournament/teams so the existing scorer picks it up
+  if((tn.teams||[]).length > 0){
+    const teamsForScorer = {};
+    tn.teams.forEach(t => {
+      teamsForScorer[t.id] = (t.players||[]).map(p => ({
+        fullName: p.name, role: p.role||'both', firstName: p.name.split(' ')[0], lastName: p.name.split(' ').slice(1).join(' ')
+      }));
+    });
+    await saveDoc('tournament', 'teams', { teams: teamsForScorer, updatedAt: Date.now(), tournamentId: tnId });
+  }
+
+  toast(`${tn.name} is now the active tournament`);
+  renderAll();
+}
+
+// ==============================================================
+// TEAMS
+// ==============================================================
+function renderTeams(){
+  const el = document.getElementById('pageTeams');
+  const activeTId = state.activeConfig?.tournamentId;
+  const tn = activeTId ? state.tournaments[activeTId] : null;
+
+  el.innerHTML = `
+    <div class="section-head">
+      <div>
+        <div class="section-title">Teams</div>
+        <div class="section-sub">${tn ? `${esc(tn.name)} · ${(tn.teams||[]).length} teams` : 'No active tournament'}</div>
+      </div>
+      ${tn ? `<button class="btn btn-gold" onclick="openModal('newTeam')">+ Add Team</button>` : ''}
+    </div>
+
+    ${!tn ? `
+      <div class="card">
+        <div class="card-body" style="text-align:center;padding:24px">
+          <div style="color:var(--dim);margin-bottom:12px">No active tournament. Set one active first.</div>
+          <button class="btn btn-gold" onclick="showPage('tournaments')">Go to Tournaments</button>
+        </div>
+      </div>` :
+    !(tn.teams||[]).length ? `
+      <div class="card">
+        <div class="card-body" style="text-align:center;padding:24px;color:var(--dim)">No teams yet. Add the first team!</div>
+      </div>` :
+    `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px">
+      ${tn.teams.map((team, idx) => `
+        <div class="card">
+          <div class="card-head" style="border-left:4px solid ${team.color||'#888'}">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="team-dot" style="background:${team.color||'#888'};width:14px;height:14px"></div>
+              <span style="font-size:14px;font-weight:700;text-transform:none;font-family:var(--body)">${esc(team.name)}</span>
+              <span class="badge badge-${['red','blue','green','gold','purple'][idx%5]}">${esc(team.id)}</span>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-xs" onclick="openModal('editTeam','${team.id}')">Edit</button>
+              <button class="btn btn-red btn-xs" onclick="confirmDeleteTeam('${team.id}')">✕</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:8px">${(team.players||[]).length} Players</div>
+            ${(team.players||[]).length ? `
+              <div style="display:flex;flex-wrap:wrap;gap:4px">
+                ${team.players.map(p => `<span class="player-chip">${esc(p.name)}<span style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-left:4px">${p.role||'?'}</span></span>`).join('')}
+              </div>` : `<div style="color:var(--dim);font-size:13px">No players assigned yet</div>`}
+            <div style="margin-top:12px;display:flex;gap:8px">
+              <button class="btn btn-ghost btn-sm" onclick="openModal('assignPlayers','${team.id}')" style="flex:1">Assign Players</button>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div style="margin-top:16px">
+      <button class="btn btn-green" onclick="syncTeamsToScorer()">🔄 Sync Teams to Scorer</button>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:12px">Push team rosters to Firestore so the scorer picks them up</span>
+    </div>`}
+  `;
+}
+
+async function syncTeamsToScorer(){
+  const activeTId = state.activeConfig?.tournamentId;
+  const tn = activeTId ? state.tournaments[activeTId] : null;
+  if(!tn || !(tn.teams||[]).length){ toast('No teams to sync', 'err'); return; }
+  const teamsForScorer = {};
+  tn.teams.forEach(t => {
+    teamsForScorer[t.id] = (t.players||[]).map(p => ({
+      fullName: p.name, role: p.role||'both', firstName: p.name.split(' ')[0], lastName: p.name.split(' ').slice(1).join(' ')
+    }));
+  });
+  await saveDoc('tournament', 'teams', { teams: teamsForScorer, updatedAt: Date.now(), tournamentId: tn.id });
+  toast('Teams synced to scorer ✓');
+}
+
+async function confirmDeleteTeam(teamId){
+  if(!confirm(`Delete team "${teamId}" from the active tournament? This cannot be undone.`)) return;
+  const activeTId = state.activeConfig?.tournamentId;
+  if(!activeTId) return;
+  const tn = state.tournaments[activeTId];
+  tn.teams = (tn.teams||[]).filter(t => t.id !== teamId);
+  await saveDoc('tournaments', activeTId, { teams: tn.teams });
+  toast('Team deleted');
+  renderAll();
+}
+
+// ==============================================================
+// PLAYERS
+// ==============================================================
+function renderPlayers(){
+  const el = document.getElementById('pagePlayers');
+  const players = state.players;
+  const roleMap = { batting:'🏏 Batting', bowling:'⚾ Bowling', both:'⭐ All-round' };
+
+  el.innerHTML = `
+    <div class="section-head">
+      <div><div class="section-title">Players</div><div class="section-sub">${players.length} registered</div></div>
+      <button class="btn btn-ghost" onclick="loadAll().then(()=>renderPage('players'))">↻ Refresh</button>
+    </div>
+    ${!players.length ? `<div class="card"><div class="card-body" style="text-align:center;padding:24px;color:var(--dim)">No players registered yet.</div></div>` : `
+    <div class="card">
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Name</th><th>Role</th><th>Batting Pref</th><th>Bowling Pref</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${players.map((p, i) => `<tr>
+            <td style="font-family:var(--mono);color:var(--dim)">${i+1}</td>
+            <td><strong>${esc(p.fullName)}</strong></td>
+            <td><span class="badge ${p.role==='both'?'badge-gold':p.role==='batting'?'badge-green':'badge-blue'}">${p.role||'?'}</span></td>
+            <td style="font-family:var(--mono);font-size:12px;color:var(--dim)">${esc(p.battingPref||'—')}</td>
+            <td style="font-family:var(--mono);font-size:12px;color:var(--dim)">${esc(p.bowlingPref||'—')}</td>
+            <td class="actions">
+              <button class="btn btn-red btn-xs" onclick="deletePlayer('${p.id}','${esc(p.fullName)}')">Delete</button>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`}
+  `;
+}
+
+async function deletePlayer(id, name){
+  if(!confirm(`Delete ${name} from the player registry? This cannot be undone.`)) return;
+  const ok = await deleteDoc('players', id);
+  if(ok){
+    state.players = state.players.filter(p => p.id !== id);
+    toast(`${name} deleted`);
+    renderPage('players');
+  } else {
+    toast('Delete failed', 'err');
+  }
+}
+
+// ==============================================================
+// MODALS
+// ==============================================================
+function openModal(type, id){
+  document.getElementById('modalBackdrop').classList.add('show');
+  const body = document.getElementById('modalBody');
+
+  if(type === 'newSeason'){
+    body.innerHTML = `
+      <h3>New Season</h3>
+      <div class="form-row">
+        <div class="fld"><label>Season Name</label><input type="text" id="mf_sName" placeholder="e.g. Season 2 · Summer 2025"></div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="fld"><label>Year</label><input type="number" id="mf_sYear" value="${new Date().getFullYear()}"></div>
+        <div class="fld"><label>Status</label>
+          <select id="mf_sStatus"><option value="active">Active</option><option value="draft">Draft</option></select>
+        </div>
+      </div>
+      <div id="mf_msg"></div>
+      <div class="modal-actions">
+        <button class="btn btn-gold" onclick="saveSeason()">Create Season</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      </div>`;
+
+  } else if(type === 'editSeason'){
+    const s = state.seasons[id];
+    body.innerHTML = `
+      <h3>Edit Season</h3>
+      <div class="form-row">
+        <div class="fld"><label>Season Name</label><input type="text" id="mf_sName" value="${esc(s.name)}"></div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="fld"><label>Year</label><input type="number" id="mf_sYear" value="${s.year||new Date().getFullYear()}"></div>
+        <div class="fld"><label>Status</label>
+          <select id="mf_sStatus">
+            <option value="active" ${s.status==='active'?'selected':''}>Active</option>
+            <option value="draft" ${s.status==='draft'?'selected':''}>Draft</option>
+            <option value="archived" ${s.status==='archived'?'selected':''}>Archived</option>
+          </select>
+        </div>
+      </div>
+      <div id="mf_msg"></div>
+      <div class="modal-actions">
+        <button class="btn btn-gold" onclick="saveSeason('${id}')">Save Changes</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      </div>`;
+
+  } else if(type === 'newTournament'){
+    const seasons = Object.values(state.seasons);
+    body.innerHTML = `
+      <h3>New Tournament</h3>
+      <div class="form-row">
+        <div class="fld"><label>Tournament Name</label><input type="text" id="mf_tName" placeholder="e.g. Tournament 1 · T20"></div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="fld"><label>Season</label>
+          <select id="mf_tSeason">
+            ${seasons.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('') || '<option value="">— Create a season first —</option>'}
+          </select>
+        </div>
+        <div class="fld"><label>Overs per Innings</label>
+          <select id="mf_tOvers">
+            ${[5,6,8,10,12,15,20].map(o => `<option value="${o}" ${o===10?'selected':''}>${o} overs</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="fld"><label>Format</label>
+          <select id="mf_tFormat">
+            <option value="Round Robin">Round Robin (all vs all)</option>
+            <option value="Knockout">Knockout</option>
+            <option value="League + Playoffs">League + Playoffs</option>
+          </select>
+        </div>
+        <div class="fld"><label>Number of Teams</label>
+          <select id="mf_tTeamCount">
+            <option value="3">3 teams</option>
+            <option value="4">4 teams</option>
+            <option value="6">6 teams</option>
+            <option value="8">8 teams</option>
+          </select>
+        </div>
+      </div>
+      <div id="mf_msg"></div>
+      <div class="modal-actions">
+        <button class="btn btn-gold" onclick="saveTournament()">Create Tournament</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      </div>`;
+
+  } else if(type === 'editTournament'){
+    const tn = state.tournaments[id];
+    body.innerHTML = `
+      <h3>Edit Tournament</h3>
+      <div class="form-row">
+        <div class="fld"><label>Tournament Name</label><input type="text" id="mf_tName" value="${esc(tn.name)}"></div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="fld"><label>Overs per Innings</label>
+          <select id="mf_tOvers">
+            ${[5,6,8,10,12,15,20].map(o => `<option value="${o}" ${o===(tn.overs||10)?'selected':''}>${o} overs</option>`).join('')}
+          </select>
+        </div>
+        <div class="fld"><label>Status</label>
+          <select id="mf_tStatus">
+            <option value="active" ${tn.status==='active'?'selected':''}>Active</option>
+            <option value="completed" ${tn.status==='completed'?'selected':''}>Completed</option>
+          </select>
+        </div>
+      </div>
+      <div id="mf_msg"></div>
+      <div class="modal-actions">
+        <button class="btn btn-gold" onclick="saveTournament('${id}')">Save Changes</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      </div>`;
+
+  } else if(type === 'newTeam'){
+    const activeTId = state.activeConfig?.tournamentId;
+    const tn = activeTId ? state.tournaments[activeTId] : null;
+    const existingIds = (tn?.teams||[]).map(t => t.id);
+    const defaultId = ['A','B','C','D','E','F','G','H'].find(x => !existingIds.includes(x)) || 'X';
+    body.innerHTML = `
+      <h3>Add Team</h3>
+      ${!tn ? `<div class="form-msg err" style="display:block">No active tournament. Set one first.</div>` : `
+      <div class="form-row form-row-2">
+        <div class="fld"><label>Team Name</label><input type="text" id="mf_teamName" placeholder="e.g. Team Alpha"></div>
+        <div class="fld"><label>Team ID (short, unique)</label><input type="text" id="mf_teamId" value="${defaultId}" maxlength="4" style="text-transform:uppercase"></div>
+      </div>
+      <div class="fld" style="margin-bottom:14px">
+        <label>Team Colour</label>
+        <div class="color-grid" id="colorGrid">
+          ${COLORS.map((c,i) => `<div class="color-swatch ${i===0?'sel':''}" style="background:${c}" data-color="${c}" onclick="selectColor(this)" title="${COLOR_NAMES[c]||c}"></div>`).join('')}
+        </div>
+        <input type="hidden" id="mf_teamColor" value="${COLORS[0]}">
+      </div>
+      <div id="mf_msg"></div>
+      <div class="modal-actions">
+        <button class="btn btn-gold" onclick="saveTeam()">Add Team</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      </div>`}`;
+
+  } else if(type === 'editTeam'){
+    const activeTId = state.activeConfig?.tournamentId;
+    const tn = activeTId ? state.tournaments[activeTId] : null;
+    const team = tn?.teams?.find(t => t.id === id);
+    if(!team){ body.innerHTML='<div class="form-msg err" style="display:block">Team not found.</div><div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>'; return; }
+    body.innerHTML = `
+      <h3>Edit Team ${esc(id)}</h3>
+      <div class="fld" style="margin-bottom:14px">
+        <label>Team Name</label>
+        <input type="text" id="mf_teamName" value="${esc(team.name)}">
+      </div>
+      <div class="fld" style="margin-bottom:14px">
+        <label>Team Colour</label>
+        <div class="color-grid" id="colorGrid">
+          ${COLORS.map(c => `<div class="color-swatch ${c===team.color?'sel':''}" style="background:${c}" data-color="${c}" onclick="selectColor(this)" title="${COLOR_NAMES[c]||c}"></div>`).join('')}
+        </div>
+        <input type="hidden" id="mf_teamColor" value="${team.color||COLORS[0]}">
+      </div>
+      <div id="mf_msg"></div>
+      <div class="modal-actions">
+        <button class="btn btn-gold" onclick="saveTeam('${id}')">Save Changes</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      </div>`;
+
+  } else if(type === 'assignPlayers'){
+    const activeTId = state.activeConfig?.tournamentId;
+    const tn = activeTId ? state.tournaments[activeTId] : null;
+    const team = tn?.teams?.find(t => t.id === id);
+    if(!team) return;
+
+    // All players NOT already assigned to OTHER teams
+    const usedElsewhere = new Set();
+    tn.teams.forEach(t => { if(t.id !== id) t.players?.forEach(p => usedElsewhere.add(p.name)); });
+    const available = state.players.filter(p => !usedElsewhere.has(p.fullName));
+    const assigned = new Set((team.players||[]).map(p => p.name));
+
+    body.innerHTML = `
+      <h3>Assign Players → ${esc(team.name)}</h3>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-bottom:12px">Click players to add/remove from this team. Players in other teams are hidden.</div>
+      <div style="max-height:320px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:14px">
+        ${!available.length ? `<div style="color:var(--dim);font-size:13px;text-align:center;padding:16px">No available players. All registered players are on other teams.</div>` :
+        available.map(p => `
+          <div class="player-chip ${assigned.has(p.fullName)?'selected':''}" id="pc_${p.id}" onclick="togglePlayerAssign(this,'${p.id}','${esc(p.fullName)}','${p.role||'both'}')">
+            ${esc(p.fullName)}
+            <span style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-left:4px">${p.role||'?'}</span>
+          </div>`).join('')}
+      </div>
+      <div id="mf_msg"></div>
+      <div class="modal-actions">
+        <button class="btn btn-gold" onclick="savePlayerAssignments('${id}')">Save Assignments</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      </div>`;
+  }
+}
+
+function selectColor(el){
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('mf_teamColor').value = el.dataset.color;
+}
+
+let pendingAssignments = {};
+function togglePlayerAssign(el, playerId, playerName, role){
+  el.classList.toggle('selected');
+  if(el.classList.contains('selected')){
+    pendingAssignments[playerId] = { name: playerName, role };
+  } else {
+    delete pendingAssignments[playerId];
+  }
+}
+// Initialize pendingAssignments when modal opens
+function initPendingAssignments(teamId){
+  pendingAssignments = {};
+  const activeTId = state.activeConfig?.tournamentId;
+  const tn = activeTId ? state.tournaments[activeTId] : null;
+  const team = tn?.teams?.find(t => t.id === teamId);
+  (team?.players||[]).forEach(p => { pendingAssignments[p.id||p.name] = p; });
+}
+
+async function savePlayerAssignments(teamId){
+  const activeTId = state.activeConfig?.tournamentId;
+  const tn = state.tournaments[activeTId];
+  const team = tn.teams.find(t => t.id === teamId);
+
+  // Build player list from currently selected chips
+  const selectedChips = document.querySelectorAll('.player-chip.selected');
+  const players = [];
+  selectedChips.forEach(chip => {
+    const pid = chip.id.replace('pc_', '');
+    const p = state.players.find(x => x.id === pid);
+    if(p) players.push({ id: p.id, name: p.fullName, role: p.role||'both' });
+  });
+
+  team.players = players;
+  await saveDoc('tournaments', activeTId, { teams: tn.teams, updatedAt: Date.now() });
+  closeModal();
+  toast(`${players.length} players assigned to ${team.name}`);
+  await syncTeamsToScorer();
+  renderAll();
+}
+
+function closeModal(){
+  document.getElementById('modalBackdrop').classList.remove('show');
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('modalBackdrop').addEventListener('click', e => {
+    if(e.target === document.getElementById('modalBackdrop')) closeModal();
+  });
+});
+
+// ---- Save functions ----
+async function saveSeason(existingId){
+  const name = document.getElementById('mf_sName')?.value?.trim();
+  const year = document.getElementById('mf_sYear')?.value;
+  const status = document.getElementById('mf_sStatus')?.value;
+  if(!name){ showModalMsg('Season name is required', 'err'); return; }
+
+  const data = { name, year: parseInt(year)||new Date().getFullYear(), status, updatedAt: Date.now() };
+  if(!existingId) data.createdAt = Date.now();
+
+  const id = existingId || name.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0,20) + '_' + Date.now();
+  await saveDoc('seasons', existingId||id, data);
+  if(!existingId) state.seasons[id] = { id, ...data };
+  else Object.assign(state.seasons[existingId], data);
+
+  closeModal();
+  toast(existingId ? 'Season updated' : `"${name}" created`);
+  renderAll();
+}
+
+async function saveTournament(existingId){
+  const name = document.getElementById('mf_tName')?.value?.trim();
+  const overs = parseInt(document.getElementById('mf_tOvers')?.value)||10;
+  const format = document.getElementById('mf_tFormat')?.value||'Round Robin';
+  const status = document.getElementById('mf_tStatus')?.value||'active';
+  const seasonId = document.getElementById('mf_tSeason')?.value;
+  if(!name){ showModalMsg('Tournament name is required', 'err'); return; }
+
+  const data = { name, overs, format, status, seasonId: existingId ? state.tournaments[existingId].seasonId : seasonId, updatedAt: Date.now() };
+  if(!existingId){ data.createdAt = Date.now(); data.teams = []; }
+
+  const id = existingId || 't_' + Date.now();
+  await saveDoc('tournaments', id, data);
+  if(!existingId) state.tournaments[id] = { id, ...data };
+  else Object.assign(state.tournaments[existingId], data);
+
+  closeModal();
+  toast(existingId ? 'Tournament updated' : `"${name}" created`);
+  renderAll();
+}
+
+async function saveTeam(existingId){
+  const name = document.getElementById('mf_teamName')?.value?.trim();
+  const color = document.getElementById('mf_teamColor')?.value || COLORS[0];
+  const rawId = (document.getElementById('mf_teamId')?.value||'').trim().toUpperCase().slice(0,4);
+  if(!name){ showModalMsg('Team name is required', 'err'); return; }
+
+  const activeTId = state.activeConfig?.tournamentId;
+  const tn = activeTId ? state.tournaments[activeTId] : null;
+  if(!tn){ showModalMsg('No active tournament', 'err'); return; }
+
+  if(existingId){
+    const team = tn.teams.find(t => t.id === existingId);
+    if(team){ team.name = name; team.color = color; }
+  } else {
+    const teamId = rawId || 'T' + ((tn.teams||[]).length + 1);
+    if((tn.teams||[]).some(t => t.id === teamId)){ showModalMsg(`Team ID "${teamId}" already exists`, 'err'); return; }
+    tn.teams = tn.teams || [];
+    tn.teams.push({ id: teamId, name, color, players: [] });
+  }
+
+  await saveDoc('tournaments', activeTId, { teams: tn.teams, updatedAt: Date.now() });
+  closeModal();
+  toast(existingId ? 'Team updated' : `Team "${name}" added`);
+  await syncTeamsToScorer();
+  renderAll();
+}
+
+async function confirmDelete(type, id, name){
+  if(!confirm(`Delete ${type} "${name}"? This cannot be undone.`)) return;
+  const ok = await deleteDoc(type === 'season' ? 'seasons' : 'tournaments', id);
+  if(ok){
+    if(type === 'season') delete state.seasons[id];
+    else delete state.tournaments[id];
+    toast(`${name} deleted`);
+    renderAll();
+  } else {
+    toast('Delete failed', 'err');
+  }
+}
+
+function showModalMsg(msg, type){
+  const el = document.getElementById('mf_msg');
+  if(el){ el.textContent = msg; el.className = `form-msg ${type==='err'?'err':'ok'}`; }
+}
+
+// ---- Toast ----
+let toastTimer;
+function toast(msg, type = 'ok'){
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = type;
+  el.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.style.display='none', 3000);
+}
+
+// ---- Misc ----
+function esc(s){ const d=document.createElement('div'); d.textContent=String(s||''); return d.innerHTML; }
+
+function initAdmin(){
+  if(window.__fbDone){
+    if(window.__fbOK && window.__db){ DB = window.__db; FM = window.__fm; loadAll(); }
+    else { toast('Firebase offline', 'err'); renderAll(); }
+  }
+}
+
+// Initialize pending assignments when assign players modal opens
+const _origOpenModal = openModal;
+window.openModal = function(type, id){
+  if(type === 'assignPlayers') pendingAssignments = {};
+  _origOpenModal(type, id);
+  if(type === 'assignPlayers' && id){
+    // Pre-populate from current team
+    const activeTId = state.activeConfig?.tournamentId;
+    const tn = activeTId ? state.tournaments[activeTId] : null;
+    const team = tn?.teams?.find(t => t.id === id);
+    (team?.players||[]).forEach(p => { pendingAssignments[p.id||p.name] = p; });
+  }
+};
+</script>
+</body>
+</html>
