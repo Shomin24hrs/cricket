@@ -20,6 +20,11 @@
 
 <script type="module">
   // ============================================================
+  // KSCY build marker — check the browser console to confirm the
+  // deployed version. If you DON'T see this line, you're viewing a
+  // cached old page → hard-refresh (Ctrl+Shift+R) or open in private.
+  console.log('%c[KSCY] BUILD 2026-06-26 · active-probe connectivity', 'color:#e3a857;font-weight:bold');
+  // ============================================================
   // Firebase config — Kerala Sports Club Yukon
   // ============================================================
   const firebaseConfig = {
@@ -1019,10 +1024,17 @@ function initApp() {
     }
   });
 
+  // Once a real WRITE failure is confirmed, this latches true so that a
+  // later successful READ can't hide the warning — being able to read but
+  // not write is exactly the state the user needs to know about.
+  let _writeConfirmedBroken = false;
+
   // Called whenever ANY real data successfully arrives from Firestore.
-  // Definitive proof the database is reachable — clears local-mode + warning.
+  // Definitive proof the database is reachable — clears local-mode + warning,
+  // UNLESS a write failure has already been confirmed.
   function markFirebaseWorking() {
     usingLocal = false;
+    if (_writeConfirmedBroken) return; // don't hide a confirmed write problem
     const warnEl = document.getElementById('fbWarning');
     if (warnEl) warnEl.classList.remove('show');
   }
@@ -1031,6 +1043,12 @@ function initApp() {
   function markFirebaseOffline(reason) {
     usingLocal = true;
     showFbErrorBanner(reason || 'connection error');
+  }
+
+  // Called specifically when a WRITE is confirmed blocked.
+  function markWriteBroken(reason) {
+    _writeConfirmedBroken = true;
+    showFbErrorBanner(reason || 'permission-denied');
   }
 
   // ---------------- Form state ----------------
@@ -1273,13 +1291,50 @@ function initApp() {
 
   function showFbErrorBanner(reason) {
     const el = document.getElementById('fbWarning');
-    el.innerHTML = `<strong>Firebase connected, but Firestore isn't reachable yet.</strong> This usually means the database hasn't been created in the Firebase console, or the security rules haven't been published. (${escapeHtml(reason)}) See the setup comment at the top of <code>index.html</code> for the two remaining steps.`;
+    const r = String(reason || '').toLowerCase();
+    let diagnosis;
+    if (r.includes('permission') || r.includes('denied') || r.includes('insufficient')) {
+      diagnosis = `Your security rules are <strong>blocking access</strong>. Open Firebase Console → Firestore → <strong>Rules</strong>, paste everything from <code>firestore.rules.txt</code>, and click <strong>Publish</strong>. (Tip: if your old rules had a date like <code>request.time &lt; timestamp.date(2025,...)</code>, they expired — the new rules have no expiry.)`;
+    } else if (r.includes('unavailable') || r.includes('timeout') || r.includes('network') || r.includes('offline')) {
+      diagnosis = `The network couldn't reach Firestore (slow connection, firewall, or an ad-blocker blocking <code>googleapis.com</code>). Check your connection and refresh.`;
+    } else if (r.includes('not-found') || r.includes('database')) {
+      diagnosis = `The Firestore database may not be created yet. Firebase Console → Build → <strong>Firestore Database</strong> → Create database (production mode).`;
+    } else {
+      diagnosis = `Open Firebase Console → Firestore → <strong>Rules</strong>, paste <code>firestore.rules.txt</code>, and Publish. If that's done, check your network/ad-blocker.`;
+    }
+    el.innerHTML = `<strong>Database write blocked.</strong> Registrations won't be saved yet. ${diagnosis} <span style="opacity:.7">[code: ${escapeHtml(reason)}]</span>`;
     el.classList.add('show');
   }
 
   // Render immediately with whatever we have (empty local list) so the
   // page is never blank while Firebase is still connecting in the background.
   renderRoster();
+
+  // ACTIVE CONNECTION PROBE — definitively determines whether reads AND writes
+  // work, instead of guessing. Writes a tiny doc to a _diag collection and
+  // deletes it. Success → clear any warning. Failure → show the exact reason.
+  async function probeFirestore() {
+    if (!fb || !fb.db || !fb.setDoc || !fb.doc) {
+      console.warn('[KSCY] probe skipped — SDK not available');
+      return;
+    }
+    try {
+      const probeRef = fb.doc(fb.db, '_diag', 'connectivity');
+      await Promise.race([
+        fb.setDoc(probeRef, { ts: Date.now(), ua: navigator.userAgent.slice(0, 60) }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('unavailable_timeout')), 10000))
+      ]);
+      console.log('[KSCY] ✅ Firestore WRITE probe succeeded — database fully connected.');
+      _writeConfirmedBroken = false;   // writes work — clear any latched failure
+      markFirebaseWorking();
+      // Clean up the probe doc (best-effort, ignore errors)
+      if (fb.deleteDoc) { try { await fb.deleteDoc(probeRef); } catch(_){} }
+    } catch (e) {
+      const code = e.code || e.message || 'connection error';
+      console.error('[KSCY] ❌ Firestore WRITE probe FAILED:', code, e);
+      markWriteBroken(code);
+    }
+  }
 
   let _liveListenersAttached = false;
   function attachLiveListenersIfReady() {
@@ -1305,7 +1360,10 @@ function initApp() {
 
   // In case fb-ready already fired before this point (e.g. very fast
   // local-mode fallback), attach listeners right away too.
-  fbReadyPromise.then(attachLiveListenersIfReady);
+  fbReadyPromise.then(() => {
+    attachLiveListenersIfReady();
+    probeFirestore();  // actively verify reads+writes; show precise error if blocked
+  });
 
   // ================================================================
   // MATCH DATA — reads s1t1_matches (written by scorer.html)
