@@ -1004,14 +1004,12 @@ function initApp() {
     function applyFbStatus() {
       fb = window.__fb;
       usingLocal = !fb.firebaseReady;
-      const warnEl = document.getElementById('fbWarning');
-      if (warnEl) {
-        if (usingLocal) warnEl.classList.add('show');
-        else warnEl.classList.remove('show'); // Firebase connected — make sure warning is hidden
-      }
+      // NOTE: we intentionally do NOT show the warning here even if the SDK
+      // reports not-ready. The warning is purely evidence-based — it appears
+      // only when a real Firestore operation actually fails, and clears the
+      // instant any real data arrives. This avoids false alarms where the SDK
+      // is slow to flag ready but reads/writes actually work fine.
       resolve();
-      // Once we know Firebase's real status, attach the live listeners
-      // and re-render with real data instead of the empty placeholder.
       attachLiveListenersIfReady();
     }
     if (window.__fbReadyFired) {
@@ -1022,15 +1020,14 @@ function initApp() {
   });
 
   // Called whenever ANY real data successfully arrives from Firestore.
-  // A successful read/listen is definitive proof the database is reachable,
-  // so we clear local-mode and hide the warning no matter what showed it.
+  // Definitive proof the database is reachable — clears local-mode + warning.
   function markFirebaseWorking() {
     usingLocal = false;
     const warnEl = document.getElementById('fbWarning');
     if (warnEl) warnEl.classList.remove('show');
   }
 
-  // Called only on a genuine, confirmed failure.
+  // Called only on a genuine, confirmed failure of a real operation.
   function markFirebaseOffline(reason) {
     usingLocal = true;
     showFbErrorBanner(reason || 'connection error');
@@ -1108,7 +1105,7 @@ function initApp() {
 
   async function getAllPlayers() {
     await fbReadyPromise;
-    if (!fb || !fb.firebaseReady) return localPlayers;
+    if (!fb || !fb.db || !fb.getDocs || !fb.collection) return localPlayers;
     try {
       // Read without orderBy (some docs may lack createdAtLocal); sort client-side.
       const snap = await Promise.race([
@@ -1187,7 +1184,7 @@ function initApp() {
             createdAtLocal: Date.now()
           };
 
-          const canWriteToFirestore = fb && fb.firebaseReady;
+          const canWriteToFirestore = fb && fb.db && fb.addDoc && fb.collection;
           if (!canWriteToFirestore) {
             console.log('[KSCY] saving locally (in-memory)...');
             playerDoc.id = 'local_' + Date.now();
@@ -1287,7 +1284,10 @@ function initApp() {
   let _liveListenersAttached = false;
   function attachLiveListenersIfReady() {
     if (_liveListenersAttached) return;
-    if (!fb || !fb.firebaseReady) return; // only attach when SDK is genuinely ready
+    // Attach as long as the Firestore SDK objects exist. We don't gate on
+    // fb.firebaseReady alone — the snapshot succeeding or failing is the real
+    // proof of connectivity, and onSnapshot itself will report errors.
+    if (!fb || !fb.db || !fb.onSnapshot || !fb.collection) return;
     _liveListenersAttached = true;
     // Live roster — no orderBy so docs missing createdAtLocal still load; sort client-side.
     fb.onSnapshot(fb.collection(fb.db, PLAYERS_COLLECTION), (snap) => {

@@ -584,7 +584,7 @@ function maxWickets(teamKey){ return Math.max(1, (rosters[teamKey]||[]).length -
 // FIREBASE
 // ------------------------------------------------------------------
 window.addEventListener('fb-ready', ()=>{
-  if(window.__fbOK && window.__db){ DB=window.__db; FM=window.__fm; loadData(); }
+  if(window.__db && window.__fm){ DB=window.__db; FM=window.__fm; loadData(); }
   else { notice('Firebase offline — scores will not be saved.'); startSetup(); }
 });
 
@@ -1427,7 +1427,7 @@ function notice(msg){
 
 function bootScorer(){
   if(window.__fbDone){
-    if(window.__fbOK&&window.__db){ DB=window.__db;FM=window.__fm;loadData(); }
+    if(window.__db&&window.__fm){ DB=window.__db;FM=window.__fm;loadData(); }
     else{ notice('Firebase offline.'); startSetup(); }
   }
   // else wait for fb-ready event

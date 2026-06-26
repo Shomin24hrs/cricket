@@ -279,7 +279,9 @@ function doAuth(){
 
 // ---- Firebase ----
 window.addEventListener('fb-ready', () => {
-  if(window.__fbOK && window.__db){ DB = window.__db; FM = window.__fm; loadAll(); }
+  // Proceed if the SDK objects exist — the actual reads/writes are the real
+  // proof of connectivity, not the __fbOK flag (which can lag or misreport).
+  if(window.__db && window.__fm){ DB = window.__db; FM = window.__fm; loadAll(); }
   else { toast('Firebase offline — changes will not be saved', 'err'); renderAll(); }
 });
 
@@ -1265,7 +1267,7 @@ function esc(s){ const d=document.createElement('div'); d.textContent=String(s||
 
 function initAdmin(){
   if(window.__fbDone){
-    if(window.__fbOK && window.__db){ DB = window.__db; FM = window.__fm; loadAll(); }
+    if(window.__db && window.__fm){ DB = window.__db; FM = window.__fm; loadAll(); }
     else { toast('Firebase offline', 'err'); renderAll(); }
   }
 }
