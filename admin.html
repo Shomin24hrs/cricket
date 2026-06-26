@@ -284,32 +284,47 @@ window.addEventListener('fb-ready', () => {
 });
 
 async function loadAll(){
-  try{
-    // Load everything that already exists in Firebase. The existing
-    // tournament/teams document (Team A/B/C etc.) is the source of truth.
-    const [seasonsSnap, tournsSnap, playersSnap, configSnap, teamsSnap, metaSnap] = await Promise.all([
-      FM.getDocs(FM.collection(DB, 'seasons')),
-      FM.getDocs(FM.collection(DB, 'tournaments')),
-      FM.getDocs(FM.collection(DB, 'players')),
-      FM.getDoc(FM.doc(DB, 'config', 'active')),
-      FM.getDoc(FM.doc(DB, 'tournament', 'teams')),
-      FM.getDoc(FM.doc(DB, 'tournament', 'meta'))
-    ]);
-    state.seasons = {};
-    seasonsSnap.docs.forEach(d => { state.seasons[d.id] = { id: d.id, ...d.data() }; });
-    state.tournaments = {};
-    tournsSnap.docs.forEach(d => { state.tournaments[d.id] = { id: d.id, ...d.data() }; });
-    // Sort players by createdAtLocal client-side (handles missing field)
-    state.players = playersSnap.docs
+  // Use allSettled so a single failing/missing read (e.g. no seasons yet,
+  // no config doc, no meta doc) can never wipe out the others. Players must
+  // load even when seasons/tournaments/config/meta don't exist yet.
+  const [seasonsR, tournsR, playersR, configR, teamsR, metaR] = await Promise.allSettled([
+    FM.getDocs(FM.collection(DB, 'seasons')),
+    FM.getDocs(FM.collection(DB, 'tournaments')),
+    FM.getDocs(FM.collection(DB, 'players')),
+    FM.getDoc(FM.doc(DB, 'config', 'active')),
+    FM.getDoc(FM.doc(DB, 'tournament', 'teams')),
+    FM.getDoc(FM.doc(DB, 'tournament', 'meta'))
+  ]);
+
+  // Seasons
+  state.seasons = {};
+  if (seasonsR.status === 'fulfilled') {
+    seasonsR.value.docs.forEach(d => { state.seasons[d.id] = { id: d.id, ...d.data() }; });
+  } else { console.warn('seasons load failed', seasonsR.reason); }
+
+  // Tournaments
+  state.tournaments = {};
+  if (tournsR.status === 'fulfilled') {
+    tournsR.value.docs.forEach(d => { state.tournaments[d.id] = { id: d.id, ...d.data() }; });
+  } else { console.warn('tournaments load failed', tournsR.reason); }
+
+  // Players — sort client-side (handles docs missing createdAtLocal)
+  if (playersR.status === 'fulfilled') {
+    state.players = playersR.value.docs
       .map(d => ({ id: d.id, ...d.data() }))
       .sort((a,b) => (a.createdAtLocal||0) - (b.createdAtLocal||0));
-    state.activeConfig = configSnap.exists() ? configSnap.data() : null;
+  } else { console.warn('players load failed', playersR.reason); state.players = []; }
 
-    // Build the canonical team list from existing Firebase data.
-    const rawTeams = teamsSnap.exists() ? (teamsSnap.data().teams || {}) : {};
-    const meta = metaSnap.exists() ? (metaSnap.data().teams || {}) : {};
-    state.teams = buildUnifiedTeams(rawTeams, meta);
-  } catch(e){ console.warn('loadAll error', e); }
+  // Active config
+  state.activeConfig = (configR.status === 'fulfilled' && configR.value.exists())
+    ? configR.value.data() : null;
+
+  // Canonical teams from tournament/teams + tournament/meta
+  const rawTeams = (teamsR.status === 'fulfilled' && teamsR.value.exists())
+    ? (teamsR.value.data().teams || {}) : {};
+  const meta = (metaR.status === 'fulfilled' && metaR.value.exists())
+    ? (metaR.value.data().teams || {}) : {};
+  state.teams = buildUnifiedTeams(rawTeams, meta);
   renderAll();
 }
 
