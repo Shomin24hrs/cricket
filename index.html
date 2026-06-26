@@ -1021,6 +1021,21 @@ function initApp() {
     }
   });
 
+  // Called whenever ANY real data successfully arrives from Firestore.
+  // A successful read/listen is definitive proof the database is reachable,
+  // so we clear local-mode and hide the warning no matter what showed it.
+  function markFirebaseWorking() {
+    usingLocal = false;
+    const warnEl = document.getElementById('fbWarning');
+    if (warnEl) warnEl.classList.remove('show');
+  }
+
+  // Called only on a genuine, confirmed failure.
+  function markFirebaseOffline(reason) {
+    usingLocal = true;
+    showFbErrorBanner(reason || 'connection error');
+  }
+
   // ---------------- Form state ----------------
   let q1 = null;   // 'batting' | 'bowling' | 'both'
   let q2 = null;   // 'yes' | 'no'
@@ -1093,21 +1108,22 @@ function initApp() {
 
   async function getAllPlayers() {
     await fbReadyPromise;
-    if (usingLocal) return localPlayers;
+    if (!fb || !fb.firebaseReady) return localPlayers;
     try {
       // Read without orderBy (some docs may lack createdAtLocal); sort client-side.
       const snap = await Promise.race([
         fb.getDocs(fb.collection(fb.db, PLAYERS_COLLECTION)),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('FIRESTORE_TIMEOUT')), 8000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('FIRESTORE_TIMEOUT')), 10000))
       ]);
+      // Success — DB is reachable, clear any stale warning.
+      markFirebaseWorking();
       return snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (a.createdAtLocal || 0) - (b.createdAtLocal || 0));
     } catch (e) {
-      console.warn('[KSCY] Failed to fetch players from Firestore, falling back to local mode:', e);
-      usingLocal = true;
-      document.getElementById('fbWarning').classList.add('show');
-      showFbErrorBanner(e.message || 'Timeout');
+      console.warn('[KSCY] One-off read failed; live listener will retry:', e);
+      // Don't latch into local mode on a single slow read — the realtime
+      // listener keeps trying and will clear/confirm status on its own.
       return localPlayers;
     }
   }
@@ -1171,7 +1187,8 @@ function initApp() {
             createdAtLocal: Date.now()
           };
 
-          if (usingLocal) {
+          const canWriteToFirestore = fb && fb.firebaseReady;
+          if (!canWriteToFirestore) {
             console.log('[KSCY] saving locally (in-memory)...');
             playerDoc.id = 'local_' + Date.now();
             localPlayers.push(playerDoc);
@@ -1185,12 +1202,12 @@ function initApp() {
                 fb.addDoc(fb.collection(fb.db, PLAYERS_COLLECTION), playerDoc),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('FIRESTORE_WRITE_TIMEOUT')), 10000))
               ]);
+              // Write succeeded — definitively online, clear any warning.
+              markFirebaseWorking();
               console.log('[KSCY] Firestore save done.');
             } catch (writeErr) {
               console.warn('[KSCY] Firestore write failed or timed out, saving locally instead:', writeErr);
-              usingLocal = true;
-              document.getElementById('fbWarning').classList.add('show');
-              showFbErrorBanner(writeErr.message || 'Write Timeout');
+              markFirebaseOffline(writeErr.message || 'Write Timeout');
               playerDoc.id = 'local_' + Date.now();
               localPlayers.push(playerDoc);
               renderRoster();
@@ -1269,17 +1286,20 @@ function initApp() {
 
   let _liveListenersAttached = false;
   function attachLiveListenersIfReady() {
-    if (usingLocal || _liveListenersAttached) return;
+    if (_liveListenersAttached) return;
+    if (!fb || !fb.firebaseReady) return; // only attach when SDK is genuinely ready
     _liveListenersAttached = true;
     // Live roster — no orderBy so docs missing createdAtLocal still load; sort client-side.
     fb.onSnapshot(fb.collection(fb.db, PLAYERS_COLLECTION), (snap) => {
+      // A successful snapshot is proof the DB is reachable — clear any warning.
+      markFirebaseWorking();
       const players = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (a.createdAtLocal || 0) - (b.createdAtLocal || 0));
       renderRoster(players);
     }, (err) => {
       console.error('Roster snapshot error', err);
-      showFbErrorBanner(err.code || err.message || 'connection error');
+      markFirebaseOffline(err.code || err.message || 'connection error');
     });
   }
 
@@ -1405,6 +1425,7 @@ function initApp() {
       fb.onSnapshot(
         fb.collection(fb.db, MC_MATCHES_COL),
         (snap) => {
+          markFirebaseWorking();
           snap.docs.forEach(d => { mcMatchData[d.id] = d.data(); });
           publicRenderAll();
         },
