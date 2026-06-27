@@ -794,6 +794,7 @@ function beginScoring(){
   document.getElementById('hpill').style.display='flex';
   document.getElementById('hpillTxt').textContent=S.matchLabel+' · Inn '+(S.innIdx+1);
   allUI();
+  fsSave(); // push the live match to the public site immediately (shows 0/0 at start)
 }
 
 // ---- BALL ENTRY ----
