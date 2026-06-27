@@ -262,6 +262,16 @@ select option{background:#0e2418;color:var(--cream);}
   #body{grid-template-columns:1fr;}
   #right{border-left:none;border-top:1px solid var(--line);}
 }
+@media(max-width:560px){
+  #hdr{padding:10px 14px; gap:8px;}
+  #hdr .htitle{font-size:16px;}
+  #hdr > div{flex-wrap:wrap;}
+  #hdr button, #hdr .btn{font-size:12px !important; padding:7px 10px !important;}
+  .bball-grid{grid-template-columns:repeat(3,1fr); gap:7px;}
+  .wt-grid{grid-template-columns:repeat(2,1fr);}
+  /* keep ball buttons tall enough to tap easily */
+  .bball-grid button, .wt-grid button{min-height:46px;}
+}
 </style>
 </head>
 <body>

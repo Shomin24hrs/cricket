@@ -680,6 +680,44 @@
   .qd-nrr-lbl{font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--cream-dim);margin-top:3px;}
   @media(max-width:640px){.mrc-body{grid-template-columns:1fr;}.qd-grid{grid-template-columns:1fr;}}
 
+  /* ---------- MOBILE / PHONE RESPONSIVE ---------- */
+  @media(max-width:760px){
+    .header-inner{
+      padding:12px 16px;
+      gap:10px;
+      /* stack brand on top, nav below, each full-width row */
+      flex-direction:column; align-items:stretch;
+    }
+    .brand{justify-content:center;}
+    .nav-actions{
+      width:100%;
+      flex-wrap:wrap;
+      justify-content:center;
+      gap:8px;
+    }
+    .count-pill{padding:7px 12px; font-size:12px;}
+    /* shrink the nav buttons so all three fit on a phone row */
+    .nav-actions .btn{
+      font-size:12px !important;
+      padding:8px 12px !important;
+      flex:1 1 auto;
+      min-width:0;
+      text-align:center;
+      white-space:nowrap;
+    }
+  }
+  @media(max-width:420px){
+    .brand-text h1{font-size:20px;}
+    .brand-text span{font-size:10px; letter-spacing:0.12em;}
+    .nav-actions .btn{font-size:11px !important; padding:8px 9px !important;}
+    .count-pill{font-size:11px; padding:6px 10px;}
+  }
+  @media(max-width:560px){
+    .row2{grid-template-columns:1fr;}
+    .choice-group{grid-template-columns:1fr;}
+    .choice-group.two{grid-template-columns:1fr;}
+  }
+
 </style>
 </head>
 <body>
