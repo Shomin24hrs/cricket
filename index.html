@@ -697,7 +697,7 @@
   </div>
 
   <section class="hero">
-    <div class="eyebrow">Season Opener · 3 Team Knockout</div>
+    <div class="eyebrow" id="heroEyebrow">Season Opener</div>
     <h2>Pick your <em>guard</em>.<br>Take your <em>mark</em>.</h2>
     <p>Register once before the deadline. Tell us how you play — the squads are drawn up automatically to keep bat, ball, and numbers fair across all three sides.</p>
 
@@ -1376,6 +1376,8 @@ function initApp() {
   let mcTeamIds = [];   // Active team IDs e.g. ['A','B','C']
   let mcTeamColors = {}; // Team ID → colour
   let mcTeamNames = {};  // Team ID → display name
+  // Returns the admin-set team name or "Team A" fallback.
+  function tName(id){ return (id && mcTeamNames[id]) ? mcTeamNames[id] : ('Team ' + (id||'?')); }
   let mcMatchData = {}; // { matchId: { overs, teamA, teamB, completed } }
 
   // Build a round-robin schedule from an array of team IDs
@@ -1445,18 +1447,10 @@ function initApp() {
 
   // Load active tournament config and build schedule, then attach listener
   fbReadyPromise.then(async () => {
-    if (usingLocal) { publicRenderAll(); return; }
-    try {
-      // Read active config to get tournament name and team colours
-      const configSnap = await fb.getDoc(fb.doc(fb.db, 'config', 'active'));
-      if (configSnap.exists()) {
-        const cfg = configSnap.data();
-        const titleEl = document.getElementById('pubTournamentTitle');
-        if (titleEl && cfg.tournamentName) {
-          titleEl.textContent = [cfg.seasonName, cfg.tournamentName].filter(Boolean).join(' · ');
-        }
-      }
-      // Load team names + colours from tournament/meta (admin panel writes this)
+    if (!fb || !fb.db || !fb.getDoc) { publicRenderAll(); return; }
+
+    // Helper: load team meta (names/colours) + roster (team IDs), then rebuild schedule.
+    async function loadTeamsAndMeta() {
       try {
         const metaSnap = await fb.getDoc(fb.doc(fb.db, 'tournament', 'meta'));
         if (metaSnap.exists()) {
@@ -1467,16 +1461,40 @@ function initApp() {
           });
         }
       } catch(e) { /* meta optional */ }
-      // Load team roster to know which teams exist
-      const teamsSnap = await fb.getDoc(fb.doc(fb.db, 'tournament', 'teams'));
-      if (teamsSnap.exists()) {
-        mcTeamIds = Object.keys(teamsSnap.data().teams || {}).sort();
-        MC_SCHEDULE = buildMCSchedule(mcTeamIds);
-        // Default colours if admin hasn't set them
-        const defaults = ['#c8392f','#2f6fb0','#3f8f5c','#e3a857','#7c5cbf','#2a9d8f'];
-        mcTeamIds.forEach((k,i) => { if(!mcTeamColors[k]) mcTeamColors[k] = defaults[i % defaults.length]; });
-      }
-    } catch(e) { console.warn('[MC] config/teams load error', e); }
+      try {
+        const teamsSnap = await fb.getDoc(fb.doc(fb.db, 'tournament', 'teams'));
+        if (teamsSnap.exists()) {
+          mcTeamIds = Object.keys(teamsSnap.data().teams || {}).sort();
+          MC_SCHEDULE = buildMCSchedule(mcTeamIds);
+          const defaults = ['#c8392f','#2f6fb0','#3f8f5c','#e3a857','#7c5cbf','#2a9d8f'];
+          mcTeamIds.forEach((k,i) => { if(!mcTeamColors[k]) mcTeamColors[k] = defaults[i % defaults.length]; });
+        }
+      } catch(e) { console.warn('[MC] teams load error', e); }
+      publicRenderAll();
+    }
+
+    // LIVE listener on the active config so the public view reflects whatever
+    // season/tournament the admin has set active — updates in real-time.
+    try {
+      fb.onSnapshot(fb.doc(fb.db, 'config', 'active'), async (configSnap) => {
+        if (configSnap.exists()) {
+          const cfg = configSnap.data();
+          const titleEl = document.getElementById('pubTournamentTitle');
+          if (titleEl && cfg.tournamentName) {
+            titleEl.textContent = [cfg.seasonName, cfg.tournamentName].filter(Boolean).join(' · ');
+          }
+          // Update the hero eyebrow with the active season/tournament name.
+          const eyebrowEl = document.getElementById('heroEyebrow');
+          if (eyebrowEl && (cfg.seasonName || cfg.tournamentName)) {
+            eyebrowEl.textContent = [cfg.seasonName, cfg.tournamentName].filter(Boolean).join(' · ');
+          }
+        }
+        await loadTeamsAndMeta();
+      }, (err) => { console.warn('[MC] config listener error', err); loadTeamsAndMeta(); });
+    } catch(e) {
+      console.warn('[MC] could not attach config listener', e);
+      await loadTeamsAndMeta();
+    }
 
     // Attach live listener for match data
     try {
@@ -1596,7 +1614,7 @@ function initApp() {
         <td>
           <div class="pub-team-cell">
             <div class="pub-team-dot" style="background:${color}"></div>
-            <span class="pub-team-name">Team ${r.team}</span>
+            <span class="pub-team-name">${tName(r.team)}</span>
           </div>
         </td>
         <td>${r.p}</td>
@@ -1634,10 +1652,10 @@ function initApp() {
       if (d.completed) {
         if (taWin) {
           const margin = d.teamA.runs - d.teamB.runs;
-          resultText = `<strong>Team ${m.teamA} won</strong> by ${margin} run${margin !== 1 ? 's' : ''}`;
+          resultText = `<strong>${tName(m.teamA)} won</strong> by ${margin} run${margin !== 1 ? 's' : ''}`;
         } else if (tbWin) {
           const wktsLeft = 10 - d.teamB.wkts;
-          resultText = `<strong>Team ${m.teamB} won</strong> by ${wktsLeft} wicket${wktsLeft !== 1 ? 's' : ''}`;
+          resultText = `<strong>${tName(m.teamB)} won</strong> by ${wktsLeft} wicket${wktsLeft !== 1 ? 's' : ''}`;
         } else {
           resultText = '<strong>Match Tied</strong>';
         }
@@ -1658,7 +1676,7 @@ function initApp() {
           <div class="pub-sc-team">
             <div class="pub-sc-tname">
               <div class="pub-team-dot" style="background:${colorA}"></div>
-              Team ${m.teamA}
+              ${tName(m.teamA)}
             </div>
             <div class="pub-sc-score">
               <div class="pub-sc-runs" style="${taWin ? 'color:var(--willow-bright)' : ''}">${d.teamA.runs}/${d.teamA.wkts}</div>
@@ -1668,7 +1686,7 @@ function initApp() {
           <div class="pub-sc-team">
             <div class="pub-sc-tname">
               <div class="pub-team-dot" style="background:${colorB}"></div>
-              Team ${m.teamB}
+              ${tName(m.teamB)}
             </div>
             <div class="pub-sc-score">
               <div class="pub-sc-runs" style="${tbWin ? 'color:var(--willow-bright)' : ''}">${d.teamB.runs}/${d.teamB.wkts}</div>
@@ -1692,7 +1710,7 @@ function initApp() {
       if (!fd) {
         finalCard = `<div class="pub-scorecard" style="border-color:rgba(227,168,87,0.3)">
           <div class="pub-sc-head" style="background:rgba(227,168,87,0.08)"><span>Final</span><span>Upcoming</span></div>
-          <div class="pub-sc-pending">Team ${fta} vs Team ${ftb} · Date TBC</div>
+          <div class="pub-sc-pending">${tName(fta)} vs ${tName(ftb)} · Date TBC</div>
         </div>`;
       } else {
         const taWin = fd.teamA.runs > fd.teamB.runs;
@@ -1700,20 +1718,20 @@ function initApp() {
         const fRRA = fd.teamA.overs > 0 ? (fd.teamA.runs / pubOversToDecimal(fd.teamA.overs)).toFixed(2) : '—';
         const fRRB = fd.teamB.overs > 0 ? (fd.teamB.runs / pubOversToDecimal(fd.teamB.overs)).toFixed(2) : '—';
         let resText = fd.completed
-          ? (taWin ? `<strong>🏆 Team ${fta} won the tournament!</strong>` : tbWin ? `<strong>🏆 Team ${ftb} won the tournament!</strong>` : '<strong>Final Tied</strong>')
+          ? (taWin ? `<strong>🏆 ${tName(fta)} won the tournament!</strong>` : tbWin ? `<strong>🏆 ${tName(ftb)} won the tournament!</strong>` : '<strong>Final Tied</strong>')
           : '● Final in progress';
         finalCard = `<div class="pub-scorecard" style="border-color:rgba(227,168,87,0.35)">
           <div class="pub-sc-head" style="background:rgba(227,168,87,0.08)"><span>🏆 Final${fd.overs ? ' · ' + fd.overs + ' ov' : ''}</span><span>${fd.completed ? '✓ Completed' : '● Live'}</span></div>
           <div class="pub-sc-body">
             <div class="pub-sc-team">
-              <div class="pub-sc-tname"><div class="pub-team-dot" style="background:${fColorA}"></div>Team ${fta}</div>
+              <div class="pub-sc-tname"><div class="pub-team-dot" style="background:${fColorA}"></div>${tName(fta)}</div>
               <div class="pub-sc-score">
                 <div class="pub-sc-runs" style="${taWin ? 'color:var(--willow-bright)' : ''}">${fd.teamA.runs}/${fd.teamA.wkts}</div>
                 <div class="pub-sc-overs">${fd.teamA.overs} ov · RR ${fRRA}</div>
               </div>
             </div>
             <div class="pub-sc-team">
-              <div class="pub-sc-tname"><div class="pub-team-dot" style="background:${fColorB}"></div>Team ${ftb}</div>
+              <div class="pub-sc-tname"><div class="pub-team-dot" style="background:${fColorB}"></div>${tName(ftb)}</div>
               <div class="pub-sc-score">
                 <div class="pub-sc-runs" style="${tbWin ? 'color:var(--willow-bright)' : ''}">${fd.teamB.runs}/${fd.teamB.wkts}</div>
                 <div class="pub-sc-overs">${fd.teamB.overs} ov · RR ${fRRB}</div>
@@ -1756,11 +1774,11 @@ function initApp() {
         <div class="pub-bm-label">${m.label || 'Final'}</div>
         <div class="pub-bm-teams">
           <div class="pub-bm-team">
-            <div class="pub-bm-tname"><div class="pub-team-dot" style="background:${cA}"></div>Team ${ta}</div>
+            <div class="pub-bm-tname"><div class="pub-team-dot" style="background:${cA}"></div>${tName(ta)}</div>
             <div class="pub-bm-score${taWin ? ' win' : ''}">${taScore}</div>
           </div>
           <div class="pub-bm-team">
-            <div class="pub-bm-tname"><div class="pub-team-dot" style="background:${cB}"></div>Team ${tb}</div>
+            <div class="pub-bm-tname"><div class="pub-team-dot" style="background:${cB}"></div>${tName(tb)}</div>
             <div class="pub-bm-score${tbWin ? ' win' : ''}">${tbScore}</div>
           </div>
         </div>
@@ -1811,7 +1829,7 @@ function initApp() {
           return `<div class="pub-qual-card qualified">
             <div class="pub-qual-head">
               <div class="pub-qual-dot" style="background:${color}"></div>
-              <span class="pub-qual-tname">Team ${t}</span>
+              <span class="pub-qual-tname">${tName(t)}</span>
               <span class="pub-qual-pts">${stats.pts} pts</span>
             </div>
             <div class="pub-qual-item highlight"><strong>✓ Qualified for the Final</strong></div>
@@ -1831,7 +1849,7 @@ function initApp() {
         <div class="pub-qual-card eliminated">
           <div class="pub-qual-head">
             <div class="pub-qual-dot" style="background:${TEAM_COLORS_FULL[elimTeam]}"></div>
-            <span class="pub-qual-tname">Team ${elimTeam}</span>
+            <span class="pub-qual-tname">${tName(elimTeam)}</span>
             <span class="pub-qual-pts">${calcTeamStats(elimTeam, mcMatchData).pts} pts</span>
           </div>
           <div class="pub-qual-item bad"><strong>✗ Eliminated from tournament</strong></div>
@@ -1899,10 +1917,10 @@ function initApp() {
           const d = mcMatchData[m.id];
 
           if (s.pts + 2 > oppS.pts) {
-            items.push(`<div class="pub-qual-item highlight">vs Team ${opp}: <strong>A win guarantees qualification</strong></div>`);
+            items.push(`<div class="pub-qual-item highlight">vs ${tName(opp)}: <strong>A win guarantees qualification</strong></div>`);
           } else if (s.pts + 2 === oppS.pts) {
             const nrrGap = (s.nrr - oppS.nrr).toFixed(3);
-            items.push(`<div class="pub-qual-item">vs Team ${opp}: <strong>Must win</strong>, then NRR decides (gap: ${nrrGap > 0 ? '+' : ''}${nrrGap})</div>`);
+            items.push(`<div class="pub-qual-item">vs ${tName(opp)}: <strong>Must win</strong>, then NRR decides (gap: ${nrrGap > 0 ? '+' : ''}${nrrGap})</div>`);
 
             // Live chase target
             if (d && !d.completed) {
@@ -1920,11 +1938,11 @@ function initApp() {
               } else if (batFirst && d.teamA.runs > 0) {
                 // Bowling — check if defending comfortably
                 const defended = d.teamA.runs;
-                items.push(`<div class="pub-qual-item">Defending <strong>${defended}</strong> — need to restrict Team ${opp}</div>`);
+                items.push(`<div class="pub-qual-item">Defending <strong>${defended}</strong> — need to restrict ${tName(opp)}</div>`);
               }
             }
           } else {
-            items.push(`<div class="pub-qual-item">vs Team ${opp}: <strong>Must win</strong>, and need other results to help</div>`);
+            items.push(`<div class="pub-qual-item">vs ${tName(opp)}: <strong>Must win</strong>, and need other results to help</div>`);
           }
         });
       }
@@ -1950,7 +1968,7 @@ function initApp() {
       return `<div class="pub-qual-card ${cardCls}">
         <div class="pub-qual-head">
           <div class="pub-qual-dot" style="background:${color}"></div>
-          <span class="pub-qual-tname">Team ${t}</span>
+          <span class="pub-qual-tname">${tName(t)}</span>
           <span class="pub-qual-pts">${s.pts} pts</span>
         </div>
         ${items.join('')}
@@ -2013,7 +2031,7 @@ function initApp() {
 
     // Labels
     document.getElementById('lmMatchLabel').textContent = (data.matchLabel || 'Live Match');
-    document.getElementById('lmInningsLabel').textContent = `Innings ${(data.currentInnings || 0) + 1} — Team ${data.battingTeam || '?'} batting`;
+    document.getElementById('lmInningsLabel').textContent = `Innings ${(data.currentInnings || 0) + 1} — ${tName(data.battingTeam || '?')} batting`;
 
     // Score hero
     document.getElementById('lmScore').textContent = `${data.runs || 0}/${data.wickets || 0}`;
@@ -2078,7 +2096,7 @@ function initApp() {
     const inn1Div = document.getElementById('lmInn1Summary');
     if (data.currentInnings === 1 && data.inn1Score) {
       inn1Div.style.display = 'block';
-      document.getElementById('lmInn1Content').innerHTML = `Team ${data.battingTeam === data.scorecard?.[1]?.team ? data.scorecard?.[0]?.team : data.battingTeam} — <strong>${data.inn1Score}</strong>`;
+      document.getElementById('lmInn1Content').innerHTML = `${tName(data.battingTeam === data.scorecard?.[1]?.team ? data.scorecard?.[0]?.team : data.battingTeam)} — <strong>${data.inn1Score}</strong>`;
     } else {
       inn1Div.style.display = 'none';
     }
@@ -2119,7 +2137,7 @@ function initApp() {
         </tr>`;
       }).join('');
 
-      return `<div class="lm-sc-heading">Team ${inn.team} — ${inn.runs}/${inn.wickets} (${inn.overs} ov)</div>
+      return `<div class="lm-sc-heading">${tName(inn.team)} — ${inn.runs}/${inn.wickets} (${inn.overs} ov)</div>
         <table class="lm-sc-table">
           <thead><tr><th>Batter</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th></tr></thead>
           <tbody>${batRows}
@@ -2204,10 +2222,10 @@ function initApp() {
         const target = i0.runs + 1;
         if (i1.runs >= target) {
           const wktsLeft = 10 - i1.wickets;
-          resultStr = `Team ${i1.team} won by ${wktsLeft} wicket${wktsLeft!==1?'s':''}`;
+          resultStr = `${tName(i1.team)} won by ${wktsLeft} wicket${wktsLeft!==1?'s':''}`;
         } else {
           const margin = i0.runs - i1.runs;
-          resultStr = `Team ${i0.team} won by ${margin} run${margin!==1?'s':''}`;
+          resultStr = `${tName(i0.team)} won by ${margin} run${margin!==1?'s':''}`;
         }
       } else { resultStr = '1st innings complete'; }
 
@@ -2218,7 +2236,7 @@ function initApp() {
         const topBowls = [...(inn.bowlers||[])].filter(b=>b.balls>0||b.overs>0).sort((a,b)=>b.wickets-a.wickets||a.runs-b.runs).slice(0,4);
         const ext = inn.extras||{}; const extTotal = (ext.wides||0)+(ext.noBalls||0)+(ext.byes||0)+(ext.legByes||0);
         return `<div class="mrc-innings">
-          <div class="mrc-inn-label" style="color:${color}">Team ${inn.team} · Innings ${idx+1}</div>
+          <div class="mrc-inn-label" style="color:${color}">${tName(inn.team)} · Innings ${idx+1}</div>
           <div class="mrc-inn-score">${inn.runs}/${inn.wickets}</div>
           <div class="mrc-inn-overs">${inn.overs} ov · Extras: ${extTotal}</div>
           <table class="mrc-sc-table" style="margin-top:10px">
@@ -2434,14 +2452,14 @@ function initApp() {
           const nrrGap = (s.nrr - oppS.nrr).toFixed(3);
 
           if (ptsAfterWin > oppS.pts + (pendingGroup.filter(x=>x.teamA===opp||x.teamB===opp).length*2)) {
-            scenarios.push(`<div class="qd-scenario qd-good">vs Team ${opp}: <strong>Win secures qualification</strong> regardless of other results</div>`);
+            scenarios.push(`<div class="qd-scenario qd-good">vs ${tName(opp)}: <strong>Win secures qualification</strong> regardless of other results</div>`);
           } else if (ptsAfterWin > oppS.pts) {
-            scenarios.push(`<div class="qd-scenario qd-good">vs Team ${opp}: <strong>A win qualifies</strong> — would overtake Team ${opp} on points</div>`);
+            scenarios.push(`<div class="qd-scenario qd-good">vs ${tName(opp)}: <strong>A win qualifies</strong> — would overtake ${tName(opp)} on points</div>`);
           } else if (ptsAfterWin === oppS.pts) {
             const gapSign = parseFloat(nrrGap) >= 0 ? '+' : '';
-            scenarios.push(`<div class="qd-scenario">vs Team ${opp}: <strong>Must win</strong>, then NRR decides (current gap: ${gapSign}${nrrGap})<br><span style="font-size:11px;color:var(--cream-dim)">Win by large margin to overtake on NRR</span></div>`);
+            scenarios.push(`<div class="qd-scenario">vs ${tName(opp)}: <strong>Must win</strong>, then NRR decides (current gap: ${gapSign}${nrrGap})<br><span style="font-size:11px;color:var(--cream-dim)">Win by large margin to overtake on NRR</span></div>`);
           } else {
-            scenarios.push(`<div class="qd-scenario">vs Team ${opp}: <strong>Must win</strong> + need other results to go in favour</div>`);
+            scenarios.push(`<div class="qd-scenario">vs ${tName(opp)}: <strong>Must win</strong> + need other results to go in favour</div>`);
           }
         });
 
@@ -2463,8 +2481,8 @@ function initApp() {
         if (nrrAdvice.length > 0) {
           nrrAdvice.forEach(r => {
             const gap = (s.nrr - statsNow[r].nrr);
-            if (gap < 0) scenarios.push(`<div class="qd-scenario"><strong>NRR behind Team ${r}</strong> by ${Math.abs(gap).toFixed(3)} — win quickly or by large margin to improve it</div>`);
-            else scenarios.push(`<div class="qd-scenario qd-good"><strong>NRR ahead of Team ${r}</strong> by +${gap.toFixed(3)} — maintain advantage</div>`);
+            if (gap < 0) scenarios.push(`<div class="qd-scenario"><strong>NRR behind ${tName(r)}</strong> by ${Math.abs(gap).toFixed(3)} — win quickly or by large margin to improve it</div>`);
+            else scenarios.push(`<div class="qd-scenario qd-good"><strong>NRR ahead of ${tName(r)}</strong> by +${gap.toFixed(3)} — maintain advantage</div>`);
           });
         }
       }
@@ -2475,7 +2493,7 @@ function initApp() {
       return `<div class="qd-card ${cls}">
         <div class="qd-head">
           <div class="qd-dot" style="background:${color}"></div>
-          <span class="qd-team">Team ${t}</span>
+          <span class="qd-team">${tName(t)}</span>
           <span class="qd-pts">${s.pts} pts</span>
           <span class="qd-status">${statusLabel}</span>
         </div>

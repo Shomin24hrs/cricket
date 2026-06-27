@@ -464,6 +464,8 @@ const PWD = '22';
 let SCHED = []; // Built dynamically from active tournament teams
 let TCOLORS = {}; // Built from team colours in active tournament
 let TNAMES = {}; // Team display names from tournament/meta
+// Returns the admin-set team name (e.g. "Royal Strikers") or "Team A" fallback.
+function tName(id){ return (id && TNAMES[id]) ? TNAMES[id] : ('Team ' + (id||'?')); }
 let activeTournamentName = 'Season 1 T1'; // Updated from config/active
 
 // Generate round-robin schedule + final from a list of team IDs
@@ -657,7 +659,7 @@ function renderSetup(){
   if(setupStep===0){
     el.innerHTML=`<h3 style="font-family:var(--disp);font-size:16px;text-transform:uppercase;margin-bottom:14px;color:var(--gold)">Select Match</h3>
       <div class="fld"><span class="sl">Match</span>
-        <select id="matchSel">${SCHED.map(m=>`<option value="${m.id}">${m.label}${m.tA?` — Team ${m.tA} vs Team ${m.tB}`:' — Final'}</option>`).join('')}</select></div>
+        <select id="matchSel">${SCHED.map(m=>`<option value="${m.id}">${m.label}${m.tA?` — ${tName(m.tA)} vs ${tName(m.tB)}`:' — Final'}</option>`).join('')}</select></div>
       <div class="fld"><span class="sl">Max Overs per Innings</span>
         <select id="ovsSel">${[5,6,8,10,12,15,20].map(o=>`<option value="${o}"${o===10?' selected':''}>${o} overs</option>`).join('')}</select></div>
       <button class="btn btn-gold btn-full" style="margin-top:6px" onclick="ss1()">Next →</button>`;
@@ -665,7 +667,7 @@ function renderSetup(){
     const m=SCHED.find(x=>x.id===S.matchId), ta=m.tA||'A', tb=m.tB||'B';
     el.innerHTML=`<h3 style="font-family:var(--disp);font-size:16px;text-transform:uppercase;margin-bottom:14px;color:var(--gold)">Toss</h3>
       <div class="fld"><span class="sl">Toss won by</span>
-        <select id="tossSel"><option value="${ta}">Team ${ta}</option><option value="${tb}">Team ${tb}</option></select></div>
+        <select id="tossSel"><option value="${ta}">${tName(ta)}</option><option value="${tb}">${tName(tb)}</option></select></div>
       <div class="fld"><span class="sl">Elected to</span>
         <select id="choiceSel"><option value="bat">Bat first</option><option value="bowl">Bowl first</option></select></div>
       <button class="btn btn-gold btn-full" style="margin-top:6px" onclick="ss2()">Next →</button>`;
@@ -678,7 +680,7 @@ function renderSetup(){
       <div style="font-size:13px;color:var(--dim);line-height:1.8;margin-bottom:14px">
         <strong style="color:var(--cream)">${S.matchLabel}</strong><br>
         Overs: <strong>${S.maxOvers}</strong><br>
-        Batting: <strong>Team ${S.battingFirst}</strong><br>
+        Batting: <strong>${tName(S.battingFirst)}</strong><br>
         Openers: <strong>${bats}</strong><br>
         Bowler: <strong>${bowl}</strong>
       </div>
@@ -1165,8 +1167,8 @@ function showInnBreak(){
   document.getElementById('innBreakPanel').style.display='block';
   document.getElementById('innBreakTitle').textContent=`Innings Break — Target: ${target}`;
   document.getElementById('innBreakBody').innerHTML=
-    `Team ${i0.team} scored <strong>${i0.runs}/${i0.wickets}</strong> in ${fmtOv(i0)}.<br>
-    Team ${battTeam2} needs <strong>${target} runs</strong> to win.`;
+    `${tName(i0.team)} scored <strong>${i0.runs}/${i0.wickets}</strong> in ${fmtOv(i0)}.<br>
+    ${tName(battTeam2)} needs <strong>${target} runs</strong> to win.`;
   renderOpenersUI(document.getElementById('innBreakSetup'), true);
 }
 
@@ -1175,8 +1177,8 @@ function finishMatch(){
   if(!i0||!i1) return;
   const target=i0.runs+1;
   let result='', winner=null;
-  if(i1.runs>=target){ const w=10-i1.wickets; result=`Team ${i1.team} won by ${w} wicket${w!==1?'s':''}`;winner=i1.team; }
-  else if(i1.complete&&i1.runs<i0.runs){ const m=i0.runs-i1.runs; result=`Team ${i0.team} won by ${m} run${m!==1?'s':''}`;winner=i0.team; }
+  if(i1.runs>=target){ const w=10-i1.wickets; result=`${tName(i1.team)} won by ${w} wicket${w!==1?'s':''}`;winner=i1.team; }
+  else if(i1.complete&&i1.runs<i0.runs){ const m=i0.runs-i1.runs; result=`${tName(i0.team)} won by ${m} run${m!==1?'s':''}`;winner=i0.team; }
   else if(i1.complete&&i1.runs===i0.runs){ result='Match Tied'; }
   if(!result) return;
   document.getElementById('sb').style.display='none';
@@ -1229,7 +1231,7 @@ function rr(i){ const d=decOv(i); return d>0?(i.runs/d).toFixed(2):'0.00'; }
 
 function renderSB(){
   const i=inn(); if(!i) return;
-  document.getElementById('sbLabel').textContent=`${S.matchLabel} · ${S.innIdx===0?'1st':'2nd'} Innings · Team ${i.team}`;
+  document.getElementById('sbLabel').textContent=`${S.matchLabel} · ${S.innIdx===0?'1st':'2nd'} Innings · ${tName(i.team)}`;
   document.getElementById('sbScore').innerHTML=`${i.runs}<span>/${i.wickets}</span>`;
   document.getElementById('sbOvers').innerHTML=`${fmtOv(i)} overs <span style="font-size:11px;color:var(--dim)">(max ${S.maxOvers})</span>`;
   document.getElementById('sbRR').textContent=`RR: ${rr(i)}`;
@@ -1319,7 +1321,7 @@ function renderScorecard(){
       </tr>`;
     }).join('');
     return `<div class="sc-section">
-      <div class="sc-hd">Innings ${idx+1} — Team ${i.team} — ${i.runs}/${i.wickets} (${fmtOv(i)} ov) · Max wkts: ${maxWickets(i.team)}</div>
+      <div class="sc-hd">Innings ${idx+1} — ${tName(i.team)} — ${i.runs}/${i.wickets} (${fmtOv(i)} ov) · Max wkts: ${maxWickets(i.team)}</div>
       <table class="sct">
         <thead><tr><th>Batter</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th></tr></thead>
         <tbody>${batRows}
