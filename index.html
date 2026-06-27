@@ -2011,12 +2011,13 @@ function initApp() {
   let lmUnsubscribe = null;
 
   function attachLiveMatchListener() {
-    if (usingLocal) return;
     if (lmUnsubscribe) return;
+    if (!fb || !fb.db || !fb.onSnapshot || !fb.doc) return;
     try {
       lmUnsubscribe = fb.onSnapshot(
         fb.doc(fb.db, 's1t1_live', 'public'),
         (snap) => {
+          markFirebaseWorking();
           if (snap.exists()) renderLiveMatch(snap.data());
           else document.getElementById('liveMatchSection').style.display = 'none';
         },
@@ -2182,12 +2183,13 @@ function initApp() {
   let scUnsubscribe = null;
 
   function attachScorecardsListener() {
-    if (usingLocal) return;
     if (scUnsubscribe) return;
+    if (!fb || !fb.db || !fb.onSnapshot || !fb.collection) return;
     try {
       scUnsubscribe = fb.onSnapshot(
         fb.collection(fb.db, 's1t1_scorecards'),
         (snap) => {
+          markFirebaseWorking();
           allScorecards = {};
           snap.docs.forEach(d => { allScorecards[d.id] = d.data(); });
           renderMatchResults();
@@ -2352,7 +2354,7 @@ function initApp() {
 
     function rankClass(i){ return i===0?'lb-rank-gold':i===1?'lb-rank-silver':i===2?'lb-rank-bronze':'lb-dim'; }
     function medal(i){ return i===0?'🥇':i===1?'🥈':i===2?'🥉':String(i+1); }
-    function teamDot(t){ return `<span class="lb-tdot" style="background:${T_COLORS[t]||'#888'}"></span>`; }
+    function teamDot(t){ return `<span class="lb-tdot" style="background:${mcTeamColors[t]||'#888'}"></span>`; }
 
     // Batting
     document.getElementById('lbBattingBody').innerHTML = batList.length ? batList.map((b,i)=>{
@@ -2441,7 +2443,7 @@ function initApp() {
 
     el.innerHTML = `<div class="qd-grid">${teams.map(t => {
       const s = statsNow[t];
-      const color = T_COLORS[t]||'#888';
+      const color = mcTeamColors[t]||'#888';
       const myPending = pendingGroup.filter(m=>m.teamA===t||m.teamB===t);
       const rivals = teams.filter(r=>r!==t);
       const scenarios = [];
